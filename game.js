@@ -530,9 +530,9 @@ function update() {
       keys['k'] = false;
     }
 
-    // P in warriors den — take apprentice on patrol or send them back
-    if (keys['p'] && stage === 2 && den.id === 'warriors' && apprentice && !dialogue) {
-      const appIdx = kits.indexOf(apprentice);
+    // P in apprentice den — take apprentice on patrol or send them back
+    if (keys['p'] && stage === 2 && den.id === 'apprentice' && apprentice && !dialogue) {
+      const appIdx = kits.filter(k => kitDen(k) === 'apprentice').indexOf(apprentice);
       const appKx = 140 + appIdx * 100;
       if (Math.abs(cat.x - appKx) < 110) {
         if (!apprenticeOut) {
@@ -1165,7 +1165,7 @@ function drawDenInterior() {
   const mateHint = stage === 2 && currentDen === 'warriors' && !mate ? '   M ask to be mates' : '';
   const kitHint  = stage === 2 && mate && kits.length < 3 && currentDen === 'nursery' ? '   K have a kit' : '';
   const appHint  = stage === 2 && !apprentice && currentDen === 'nursery' && kits.some(k => k.stage === 0) ? '   P pick apprentice' : '';
-  const trainHint = stage === 2 && apprentice && currentDen === 'warriors' ? ('   P ' + (apprenticeOut ? 'send back' : 'take on patrol')) : '';
+  const trainHint = stage === 2 && apprentice && currentDen === 'apprentice' ? ('   P ' + (apprenticeOut ? 'send back' : 'take on patrol')) : '';
   ctx.fillText('A/D move   T talk   S sleep   Q leave' + mateHint + kitHint + appHint + trainHint, W/2, H - 10);
 }
 
