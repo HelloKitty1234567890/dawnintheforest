@@ -68,13 +68,14 @@ document.addEventListener('keydown', e => {
       kitNameInput = kitNameInput.slice(0, -1);
     } else if (e.key === 'Enter' && kitNameInput.trim().length > 0) {
       const name = kitNameInput.trim();
-      const kitName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() + 'kit';
+      const kitPrefix = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+      const fullKitName = kitPrefix + 'kit';
       const kitColors = ['#c8a870','#7a9aaa','#b87060','#a0b888','#8a8aaa'];
       const c = kitColors[kits.length % kitColors.length];
-      kits.push({ name: kitName, color: c, leg: c });
+      kits.push({ name: fullKitName, prefix: kitPrefix, color: c, leg: c, stage: 0, growTimer: 0 });
       kitNameInput = '';
       namingKit = false;
-      dialogue = { speaker: catName(), text: 'Welcome to RiverClan, ' + kitName + '! 💕' };
+      dialogue = { speaker: catName(), text: 'Welcome to RiverClan, ' + fullKitName + '! 💕' };
       dialogueTimer = 200;
     } else if (e.key.length === 1 && kitNameInput.length < 12) {
       kitNameInput += e.key;
@@ -198,9 +199,21 @@ let mateAsked = false;
 let mateTimer = 0;
 
 // Kits
-let kits = []; // { name, color, leg }
-let namingKit = false; // are we in the kit naming screen?
+// stage: 0=kit, 1=apprentice, 2=warrior
+// Each kit has a growTimer that ticks up — at thresholds they grow up
+let kits = []; // { name, color, leg, stage, growTimer, prefix }
+let namingKit = false;
 let kitNameInput = '';
+const KIT_GROW_TO_APP  = 1800;  // ~30 seconds of play
+const KIT_GROW_TO_WAR  = 4200;
+
+function kitDisplayName(k) {
+  if (k.stage === 0) return k.prefix + 'kit';
+  if (k.stage === 1) return k.prefix + 'paw';
+  return k.prefix + 'pool'; // warrior suffix for kits
+}
+function kitSize(k) { return k.stage === 0 ? 9 : k.stage === 1 ? 14 : 19; }
+function kitDen(k)  { return k.stage === 0 ? 'nursery' : k.stage === 1 ? 'warriors' : 'warriors'; }
 
 function isNight() { return dayTime < 0.22 || dayTime > 0.80; }
 function isDawn()  { return dayTime >= 0.22 && dayTime < 0.35; }
@@ -412,6 +425,22 @@ function update() {
   }
 
   dayTime = (dayTime + DAY_SPEED) % 1;
+
+  // Grow kits over time
+  for (const k of kits) {
+    if (k.stage < 2) k.growTimer++;
+    if (k.stage === 0 && k.growTimer >= KIT_GROW_TO_APP) {
+      k.stage = 1;
+      k.name  = k.prefix + 'paw';
+      dialogue = { speaker: 'Ripplestar', text: `${k.name} has earned their apprentice name! From this day on they shall be known as ${k.name}!` };
+      dialogueTimer = 280;
+    } else if (k.stage === 1 && k.growTimer >= KIT_GROW_TO_WAR) {
+      k.stage = 2;
+      k.name  = k.prefix + 'pool';
+      dialogue = { speaker: 'Ripplestar', text: `${k.name} has proven themselves a true warrior of RiverClan!` };
+      dialogueTimer = 280;
+    }
+  }
 
   // Forest prey movement
   const inForest = cat.x < FOREST_END && !currentDen;
@@ -677,15 +706,26 @@ function drawDenInterior() {
   ctx.textAlign = 'center';
   ctx.fillText(catName(), cat.x, H - 80 - catSize() * 2.6);
 
-  // Kits in nursery
-  if (currentDen === 'nursery' && kits.length > 0) {
-    kits.forEach((k, i) => {
-      const kx = 160 + i * 120;
-      drawCat(kx, H - 80, 0, k.color, k.leg, 10);
+  // Kits/apprentices/warriors in their correct den
+  const kitsHere = kits.filter(k => kitDen(k) === currentDen);
+  if (kitsHere.length > 0) {
+    kitsHere.forEach((k, i) => {
+      const kx = 140 + i * 100;
+      const ks = kitSize(k);
+      drawCat(kx, H - 80, 0, k.color, k.leg, ks);
       ctx.fillStyle = '#ffd8a8';
       ctx.font = '10px Georgia';
       ctx.textAlign = 'center';
-      ctx.fillText(k.name, kx, H - 108);
+      ctx.fillText(k.name, kx, H - 80 - ks * 2.8);
+      // progress pip
+      if (k.stage < 2) {
+        const maxT = k.stage === 0 ? KIT_GROW_TO_APP : KIT_GROW_TO_WAR;
+        const pct = Math.min(k.growTimer / maxT, 1);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(kx - 20, H - 80 - ks*2.8 - 14, 40, 5);
+        ctx.fillStyle = '#aadfc8';
+        ctx.fillRect(kx - 20, H - 80 - ks*2.8 - 14, 40 * pct, 5);
+      }
     });
   }
 
@@ -1223,7 +1263,7 @@ function drawHUD() {
     if (kits.length > 0) {
       ctx.fillStyle = '#ffd8a8';
       ctx.font = '12px Georgia';
-      ctx.fillText('🐱 Kits: ' + kits.map(k => k.name).join(', '), 12, 82);
+      ctx.fillText('🐱 ' + kits.map(k => k.name).join('  '), 12, 82);
     }
   }
 
