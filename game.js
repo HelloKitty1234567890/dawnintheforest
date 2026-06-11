@@ -277,6 +277,8 @@ let stage = 0;
 let xp = 0;
 const XP_TO_APPRENTICE = 300;
 const XP_TO_WARRIOR    = 700;
+const XP_TO_DEPUTY     = 1200;
+const XP_TO_LEADER     = 2000;
 const WARRIOR_SUFFIXES = ['storm','heart','fire','leap','splash','stream','ripple','pool','claw','tail'];
 let ceremonyTimer = 0;
 let ceremonyText  = '';
@@ -288,11 +290,14 @@ let pathChoice = 0; // 0=warrior, 1=medicine (highlighted)
 
 const MED_SUFFIXES = ['leaf','petal','pool','frost','feather','fern','whisker','herb'];
 
-function catSize() { return stage === 0 ? 12 : stage === 1 ? 17 : 22; }
+let leaderLives = 9;
+
+function catSize() { return stage === 0 ? 12 : stage === 1 ? 17 : stage >= 3 ? 24 : 22; }
 
 function catName() {
   if (stage === 0) return prefix + 'kit';
   if (stage === 1) return prefix + 'paw';
+  if (stage === 4) return prefix + 'star';
   if (catPath === 'medicine') return prefix + MED_SUFFIXES[prefix.length % MED_SUFFIXES.length];
   return prefix + WARRIOR_SUFFIXES[prefix.length % WARRIOR_SUFFIXES.length];
 }
@@ -321,6 +326,7 @@ function startGame() {
   catPath       = 'warrior';
   choosingPath  = false;
   pathChoice    = 0;
+  leaderLives   = 9;
   tcBattle      = false;
   tcCats        = [];
   playerHp      = PLAYER_MAX_HP;
@@ -577,6 +583,22 @@ function update() {
     dialogue = { speaker: 'Ripplestar', text: ceremonyText };
     dialogueTimer = 400;
   }
+  if (stage === 2 && catPath === 'warrior' && xp >= XP_TO_DEPUTY) {
+    stage = 3;
+    xp = XP_TO_DEPUTY;
+    ceremonyText = `${catName()}! Your courage and loyalty are unmatched. I, Ripplestar, name you deputy of RiverClan! All cats honour the new deputy!`;
+    dialogue = { speaker: 'Ripplestar', text: ceremonyText };
+    dialogueTimer = 420;
+  }
+  if (stage === 3 && xp >= XP_TO_LEADER) {
+    stage = 4;
+    xp = XP_TO_LEADER;
+    leaderLives = 9;
+    playerHp = PLAYER_MAX_HP;
+    ceremonyText = `I give you a life for courage. I give you a life for loyalty. I give you a life for love. Nine lives, ${catName()}! Lead RiverClan with wisdom and strength! RIVERCLAN!`;
+    dialogue = { speaker: 'StarClan', text: ceremonyText };
+    dialogueTimer = 500;
+  }
 
   dayTime = (dayTime + DAY_SPEED) % 1;
 
@@ -713,7 +735,7 @@ function update() {
   if (fishCaughtTimer > 0) fishCaughtTimer--;
 
   // ── Battle: trigger with B at camp border ──────────────────────────────────
-  if (keys['b'] && !tcBattle && !currentDen && !dialogue && stage === 2 && catPath === 'warrior') {
+  if (keys['b'] && !tcBattle && !currentDen && !dialogue && stage >= 2 && catPath === 'warrior') {
     startBattle();
     keys['b'] = false;
   }
@@ -758,11 +780,24 @@ function update() {
         if (Math.random() < 0.015) {
           playerHp = Math.max(0, playerHp - 1);
           if (playerHp === 0) {
-            tcBattle = false;
-            tcCats = [];
-            playerHp = 3;
-            dialogue = { speaker: 'Ripplestar', text: `${catName()}! Fall back! You fought bravely but you need to rest. ThunderClan will be back...` };
-            dialogueTimer = 300;
+            if (stage === 4) {
+              leaderLives--;
+              playerHp = PLAYER_MAX_HP;
+              if (leaderLives <= 0) {
+                tcBattle = false; tcCats = [];
+                dialogue = { speaker: 'StarClan', text: `${catName()}... you have used all nine lives. You join us now among the stars. RiverClan will remember you always.` };
+                dialogueTimer = 500;
+              } else {
+                dialogue = { speaker: catName(), text: `A life lost! ${leaderLives} lives remain. I will not give up!` };
+                dialogueTimer = 200;
+              }
+            } else {
+              tcBattle = false;
+              tcCats = [];
+              playerHp = 3;
+              dialogue = { speaker: 'Ripplestar', text: `${catName()}! Fall back! You fought bravely but you need to rest. ThunderClan will be back...` };
+              dialogueTimer = 300;
+            }
           }
         }
       }
@@ -1669,18 +1704,20 @@ function drawPlayer() {
 
 function drawHUD() {
   // Name + stage
-  const stageLabel = stage === 0 ? 'Kit' : stage === 1 ? (catPath === 'medicine' ? 'Medicine Apprentice' : 'Apprentice') : (catPath === 'medicine' ? 'Medicine Cat' : 'Warrior');
+  const stageLabel = ['Kit', catPath === 'medicine' ? 'Medicine Apprentice' : 'Apprentice', catPath === 'medicine' ? 'Medicine Cat' : 'Warrior', 'Deputy', 'Leader'][stage] || 'Leader';
   ctx.fillStyle = '#aadfc8';
   ctx.font = '15px Georgia';
   ctx.textAlign = 'left';
   ctx.fillText(catName() + ' — RiverClan  (' + stageLabel + ')', 12, 24);
 
   // XP bar
-  if (stage < 2) {
-    const maxXp = stage === 0 ? XP_TO_APPRENTICE : XP_TO_WARRIOR;
+  const xpGoals = [XP_TO_APPRENTICE, XP_TO_WARRIOR, XP_TO_DEPUTY, XP_TO_LEADER];
+  const xpLabels = ['To Apprentice', 'To Warrior', 'To Deputy', 'To Leader'];
+  if (stage < 4) {
+    const maxXp = xpGoals[stage];
     const barW = 160, barH = 10;
     const filled = Math.min((xp / maxXp) * barW, barW);
-    const label = stage === 0 ? 'To Apprentice' : 'To Warrior';
+    const label = xpLabels[stage];
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(12, 32, barW, barH);
     if (mentor) {
@@ -1702,7 +1739,20 @@ function drawHUD() {
   } else {
     ctx.fillStyle = '#ffe080';
     ctx.font = 'italic 12px Georgia';
-    ctx.fillText('⭐ Full Warrior of RiverClan', 12, 48);
+    const rankLabel = stage === 4 ? `⭐ Leader of RiverClan — ${leaderLives} lives` : stage === 3 ? '⭐ Deputy of RiverClan' : '⭐ Full Warrior of RiverClan';
+    ctx.fillText(rankLabel, 12, 48);
+    if (stage === 4) {
+      // draw life dots
+      for (let i = 0; i < 9; i++) {
+        ctx.beginPath();
+        ctx.arc(16 + i * 14, 60, 4, 0, Math.PI * 2);
+        ctx.fillStyle = i < leaderLives ? '#ffe080' : '#444';
+        ctx.fill();
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
     if (mate) {
       ctx.fillStyle = '#ff90b8';
       ctx.font = '12px Georgia';
@@ -1723,7 +1773,7 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '11px Georgia';
   ctx.textAlign = 'left';
-  const battleHint = stage === 2 && !tcBattle ? '   B start battle vs ThunderClan' : '';
+  const battleHint = (stage === 2 || stage === 3 || stage === 4) && catPath === 'warrior' && !tcBattle ? '   B start battle vs ThunderClan' : '';
   const fightHint  = tcBattle ? '   F fight!' : '';
   const hint = cat.x < FOREST_END
     ? 'A/D move   W jump   F pounce' + fightHint
