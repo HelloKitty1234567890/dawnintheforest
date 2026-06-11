@@ -62,7 +62,28 @@ const NPCS = [
 ];
 
 const keys = {};
-document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+document.addEventListener('keydown', e => {
+  if (namingKit) {
+    if (e.key === 'Backspace') {
+      kitNameInput = kitNameInput.slice(0, -1);
+    } else if (e.key === 'Enter' && kitNameInput.trim().length > 0) {
+      const name = kitNameInput.trim();
+      const kitName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase() + 'kit';
+      const kitColors = ['#c8a870','#7a9aaa','#b87060','#a0b888','#8a8aaa'];
+      const c = kitColors[kits.length % kitColors.length];
+      kits.push({ name: kitName, color: c, leg: c });
+      kitNameInput = '';
+      namingKit = false;
+      dialogue = { speaker: catName(), text: 'Welcome to RiverClan, ' + kitName + '! 💕' };
+      dialogueTimer = 200;
+    } else if (e.key.length === 1 && kitNameInput.length < 12) {
+      kitNameInput += e.key;
+    }
+    e.preventDefault();
+    return;
+  }
+  keys[e.key.toLowerCase()] = true;
+});
 document.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
 
 let cat, onGround, cameraX, dialogue, dialogueTimer, walkFrame;
@@ -173,8 +194,13 @@ function lerpColor(a, b, t) {
 
 // Mate system
 let mate = null; // { name, color, leg } once chosen
-let mateAsked = false; // waiting for response
+let mateAsked = false;
 let mateTimer = 0;
+
+// Kits
+let kits = []; // { name, color, leg }
+let namingKit = false; // are we in the kit naming screen?
+let kitNameInput = '';
 
 function isNight() { return dayTime < 0.22 || dayTime > 0.80; }
 function isDawn()  { return dayTime >= 0.22 && dayTime < 0.35; }
@@ -214,6 +240,9 @@ function startGame() {
   dayTime       = 0.25;
   mate          = null;
   mateAsked     = false;
+  kits          = [];
+  namingKit     = false;
+  kitNameInput  = '';
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -318,6 +347,13 @@ function update() {
         keys['m'] = false;
       }
     }
+    // K to have a kit — only in nursery, warrior with mate, max 3
+    if (keys['k'] && stage === 2 && mate && kits.length < 3 && den.id === 'nursery' && !dialogue && !namingKit) {
+      namingKit = true;
+      kitNameInput = '';
+      keys['k'] = false;
+    }
+
     if (keys['q'] || keys['escape']) {
       currentDen = null;
       cat.x = den.x;
@@ -641,11 +677,44 @@ function drawDenInterior() {
   ctx.textAlign = 'center';
   ctx.fillText(catName(), cat.x, H - 80 - catSize() * 2.6);
 
+  // Kits in nursery
+  if (currentDen === 'nursery' && kits.length > 0) {
+    kits.forEach((k, i) => {
+      const kx = 160 + i * 120;
+      drawCat(kx, H - 80, 0, k.color, k.leg, 10);
+      ctx.fillStyle = '#ffd8a8';
+      ctx.font = '10px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText(k.name, kx, H - 108);
+    });
+  }
+
+  // Kit naming screen
+  if (namingKit) {
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.fillRect(W/2 - 180, H/2 - 55, 360, 105);
+    ctx.strokeStyle = '#ffb0c8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W/2 - 180, H/2 - 55, 360, 105);
+    ctx.fillStyle = '#ffb0c8';
+    ctx.font = 'bold 14px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Name your kit! (type a prefix)', W/2, H/2 - 28);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Georgia';
+    ctx.fillText((kitNameInput || '') + 'kit' + (Date.now() % 800 < 400 ? '|' : ' '), W/2, H/2 + 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '11px Georgia';
+    ctx.fillText('Press Enter to confirm', W/2, H/2 + 34);
+  }
+
   // Exit hint
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '11px Georgia';
+  ctx.textAlign = 'center';
   const mateHint = stage === 2 && currentDen === 'warriors' && !mate ? '   M ask to be mates' : '';
-  ctx.fillText('A/D move   T talk   Q leave' + mateHint, W/2, H - 10);
+  const kitHint  = stage === 2 && mate && kits.length < 3 && currentDen === 'nursery' ? '   K have a kit' : '';
+  ctx.fillText('A/D move   T talk   Q leave' + mateHint + kitHint, W/2, H - 10);
 }
 
 function drawFishing() {
@@ -1150,6 +1219,11 @@ function drawHUD() {
       ctx.fillStyle = '#ff90b8';
       ctx.font = '12px Georgia';
       ctx.fillText('💕 Mate: ' + mate.name, 12, 65);
+    }
+    if (kits.length > 0) {
+      ctx.fillStyle = '#ffd8a8';
+      ctx.font = '12px Georgia';
+      ctx.fillText('🐱 Kits: ' + kits.map(k => k.name).join(', '), 12, 82);
     }
   }
 
