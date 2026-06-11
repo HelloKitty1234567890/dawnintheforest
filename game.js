@@ -327,16 +327,24 @@ function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22
     }
   }
 
-  // four stubby legs
-  for (const lx of [-0.5, -0.16, 0.16, 0.5]) {
-    ctx.fillStyle = legColor;
-    ctx.beginPath();
-    ctx.ellipse(bx + lx * s, groundY - s * 0.28, s * 0.18, s * 0.32, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // paw
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.ellipse(bx + lx * s, groundY - s * 0.04, s * 0.24, s * 0.14, 0, 0, Math.PI * 2);
-    ctx.fill();
+  // two front paws poking out from under body — like in the photo
+  ctx.fillStyle = legColor;
+  ctx.beginPath();
+  ctx.ellipse(bx - s * 0.38, groundY - s * 0.1, s * 0.28, s * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(bx + s * 0.38, groundY - s * 0.1, s * 0.28, s * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // toe lines on paws
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1;
+  for (const px of [bx - s * 0.38, bx + s * 0.38]) {
+    for (const toe of [-0.12, 0, 0.12]) {
+      ctx.beginPath();
+      ctx.moveTo(px + toe * s, groundY - s * 0.18);
+      ctx.lineTo(px + toe * s, groundY - s * 0.02);
+      ctx.stroke();
+    }
   }
 }
