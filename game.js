@@ -162,8 +162,8 @@ function draw() {
     ctx.fillText('Press E to talk', ripplestar.x - cameraX + 14, ripplestar.y - 17);
   }
 
-  // Player cat — small kit, drawn at scale 0.6
-  drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', 0.6);
+  // Player cat — tiny kit, drawn at scale 0.4
+  drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', 0.4);
 
   // Name tag — always visible above your cat
   ctx.fillStyle = '#aadfc8';
