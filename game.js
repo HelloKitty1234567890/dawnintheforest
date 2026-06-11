@@ -205,6 +205,7 @@ let kits = []; // { name, color, leg, stage, growTimer, prefix }
 let namingKit = false;
 let kitNameInput = '';
 let apprentice = null; // ref to the kit chosen as player's apprentice
+let apprenticeOut = false; // true when apprentice is following player on patrol
 const KIT_GROW_TO_APP  = 1800;  // ~30 seconds of play
 const KIT_GROW_TO_WAR  = 4200;
 
@@ -258,6 +259,7 @@ function startGame() {
   namingKit     = false;
   kitNameInput  = '';
   apprentice    = null;
+  apprenticeOut = false;
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -369,6 +371,24 @@ function update() {
       keys['k'] = false;
     }
 
+    // P in warriors den — take apprentice on patrol or send them back
+    if (keys['p'] && stage === 2 && den.id === 'warriors' && apprentice && !dialogue) {
+      const appIdx = kits.indexOf(apprentice);
+      const appKx = 140 + appIdx * 100;
+      if (Math.abs(cat.x - appKx) < 110) {
+        if (!apprenticeOut) {
+          apprenticeOut = true;
+          dialogue = { speaker: apprentice.name, text: `Yes, mentor! I\'m ready to train! Let\'s go! 🐾` };
+          dialogueTimer = 220;
+        } else {
+          apprenticeOut = false;
+          dialogue = { speaker: apprentice.name, text: `That was great training! I learned so much today!` };
+          dialogueTimer = 220;
+        }
+        keys['p'] = false;
+      }
+    }
+
     // P to pick an apprentice from the nursery kits
     if (keys['p'] && stage === 2 && den.id === 'nursery' && !apprentice && !dialogue && !namingKit) {
       const nurseryKits = kits.filter(k => k.stage === 0);
@@ -447,6 +467,11 @@ function update() {
   }
 
   dayTime = (dayTime + DAY_SPEED) % 1;
+
+  // Apprentice trains faster while out on patrol
+  if (apprentice && apprenticeOut && apprentice.stage === 1) {
+    apprentice.growTimer += 2; // double speed while training
+  }
 
   // Grow kits over time
   for (const k of kits) {
@@ -784,7 +809,8 @@ function drawDenInterior() {
   const mateHint = stage === 2 && currentDen === 'warriors' && !mate ? '   M ask to be mates' : '';
   const kitHint  = stage === 2 && mate && kits.length < 3 && currentDen === 'nursery' ? '   K have a kit' : '';
   const appHint  = stage === 2 && !apprentice && currentDen === 'nursery' && kits.some(k => k.stage === 0) ? '   P pick apprentice' : '';
-  ctx.fillText('A/D move   T talk   Q leave' + mateHint + kitHint + appHint, W/2, H - 10);
+  const trainHint = stage === 2 && apprentice && currentDen === 'warriors' ? ('   P ' + (apprenticeOut ? 'send back' : 'take on patrol')) : '';
+  ctx.fillText('A/D move   T talk   Q leave' + mateHint + kitHint + appHint + trainHint, W/2, H - 10);
 }
 
 function drawFishing() {
@@ -1229,6 +1255,19 @@ function drawNPCs() {
     }
   }
 
+  // Apprentice follows player when out on patrol
+  if (apprentice && apprenticeOut && !currentDen) {
+    const ax = cat.x - cameraX - 45;
+    drawCat(ax, GROUND_Y, cat.vx, apprentice.color, apprentice.leg, kitSize(apprentice), walkFrame);
+    ctx.fillStyle = '#c8e0ff';
+    ctx.font = '11px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(apprentice.name, ax, GROUND_Y - kitSize(apprentice) * 2.8);
+    ctx.fillStyle = '#ffe080';
+    ctx.font = '11px Georgia';
+    ctx.fillText('★ apprentice', ax, GROUND_Y - kitSize(apprentice) * 2.8 - 14);
+  }
+
   // Mate stands near the nursery with a heart
   if (mate && !currentDen) {
     const mx = NURSERY_X + 160 - cameraX;
@@ -1298,7 +1337,7 @@ function drawHUD() {
     if (apprentice) {
       ctx.fillStyle = '#c8e0ff';
       ctx.font = '12px Georgia';
-      ctx.fillText('🐾 Apprentice: ' + apprentice.name, 12, 99);
+      ctx.fillText('🐾 Apprentice: ' + apprentice.name + (apprenticeOut ? ' (training with you!)' : ''), 12, 99);
     }
   }
 
