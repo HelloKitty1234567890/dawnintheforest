@@ -49,13 +49,13 @@ let showName;
 let dialogue;
 let dialogueTimer;
 
-const ripplestar = { x: 320, y: GROUND_Y - 38, w: 40, h: 38 };
+const ripplestar = { x: 320, y: GROUND_Y, w: 44, h: 44 };
 
 function startGame() {
   canvas.width = W;
   canvas.height = H;
 
-  cat = { x: 120, y: GROUND_Y - 38, w: 40, h: 38, vx: 0, vy: 0 };
+  cat = { x: 120, y: GROUND_Y - 28, w: 24, h: 28, vx: 0, vy: 0 };
   onGround = false;
   cameraX = 0;
   showName = true;
@@ -90,7 +90,7 @@ function update() {
 
   // ground collision
   if (cat.y + cat.h >= GROUND_Y) {
-    cat.y = GROUND_Y - cat.h - 2;
+    cat.y = GROUND_Y - cat.h;
     cat.vy = 0;
     onGround = true;
   }
@@ -145,31 +145,31 @@ function draw() {
   // Trees in background
   drawTrees(cameraX);
 
-  // Ripplestar — full grown leader, drawn at scale 1.0
-  drawCat(ripplestar.x - cameraX, ripplestar.y, 0, '#f0f0f0', '#ffffff', 1.0);
+  // Ripplestar — full grown leader
+  drawCat(ripplestar.x - cameraX, GROUND_Y, 0, '#f0f0f0', '#e0e0e0', 22);
   ctx.fillStyle = '#f0f0ee';
   ctx.font = '12px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText('Ripplestar', ripplestar.x - cameraX + 14, ripplestar.y - 8);
+  ctx.fillText('Ripplestar', ripplestar.x - cameraX, GROUND_Y - 56);
 
   // "press E" hint
-  if (Math.abs(cat.x - ripplestar.x) < 50 && !dialogue) {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(ripplestar.x - cameraX - 28, ripplestar.y - 30, 84, 18);
+  if (Math.abs(cat.x - ripplestar.x) < 60 && !dialogue) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(ripplestar.x - cameraX - 42, GROUND_Y - 76, 84, 18);
     ctx.fillStyle = '#ffe080';
     ctx.font = '12px Georgia';
     ctx.textAlign = 'center';
-    ctx.fillText('Press E to talk', ripplestar.x - cameraX + 14, ripplestar.y - 17);
+    ctx.fillText('Press E to talk', ripplestar.x - cameraX, GROUND_Y - 63);
   }
 
-  // Player cat — tiny kit, drawn at scale 0.4
-  drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', 0.4);
+  // Player cat — tiny kit
+  drawCat(cat.x - cameraX, GROUND_Y, cat.vx, '#4a4a5a', '#6a6a7a', 12);
 
-  // Name tag — always visible above your cat
+  // Name tag — always visible above kit
   ctx.fillStyle = '#aadfc8';
-  ctx.font = 'bold 13px Georgia';
+  ctx.font = 'bold 12px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText(kitName, cat.x - cameraX + 20, cat.y - 6);
+  ctx.fillText(kitName, cat.x - cameraX, GROUND_Y - 28);
 
   // HUD
   ctx.fillStyle = '#aadfc8';
@@ -216,125 +216,124 @@ function drawTrees(camX) {
   }
 }
 
-function drawCat(x, y, vx, color = '#4a4a5a', legColor = '#6a6a7a', scale = 1.0) {
-  ctx.save();
-  ctx.translate(x, y + 44);
-  ctx.scale(scale, scale);
-  ctx.translate(-x, -(y + 44));
+// draws a cat with bottom-centre at (x, groundY)
+// s = size unit (adult ~22, kit ~12)
+function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22) {
   const c = color;
-  const facingLeft = vx < 0;
-  const dir = facingLeft ? -1 : 1;
+  const dir = vx < 0 ? -1 : 1;
 
-  // All coords relative to cat centre-bottom at (x+20, y+44)
-  const bx = x + 20; // body centre x
-  const by = y + 28; // body centre y
+  // anchor points
+  const footY = groundY;
+  const bodyY = footY - s * 1.0;
+  const bodyX = x;
+  const headX = bodyX + dir * s * 1.3;
+  const headY = bodyY - s * 0.3;
 
-  // tail behind body
+  // tail (behind body, opposite direction to facing)
   ctx.strokeStyle = c;
-  ctx.lineWidth = 5;
+  ctx.lineWidth = s * 0.22;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(bx - dir * 14, by + 8);
-  ctx.quadraticCurveTo(bx - dir * 34, by - 4, bx - dir * 28, by - 22);
+  ctx.moveTo(bodyX - dir * s * 0.7, bodyY + s * 0.3);
+  ctx.quadraticCurveTo(bodyX - dir * s * 1.6, bodyY - s * 0.2, bodyX - dir * s * 1.2, bodyY - s * 1.1);
   ctx.stroke();
 
   // body
   ctx.fillStyle = c;
   ctx.beginPath();
-  ctx.ellipse(bx, by, 18, 12, 0, 0, Math.PI * 2);
+  ctx.ellipse(bodyX, bodyY, s * 0.95, s * 0.6, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // neck connector
+  // neck
   ctx.beginPath();
-  ctx.ellipse(bx + dir * 14, by - 6, 8, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(bodyX + dir * s * 0.7, bodyY - s * 0.25, s * 0.4, s * 0.35, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // head
-  const hx = bx + dir * 22;
-  const hy = by - 10;
+  // head — kits have bigger heads relative to body
+  const headR = s * 0.72;
   ctx.beginPath();
-  ctx.ellipse(hx, hy, 13, 12, 0, 0, Math.PI * 2);
+  ctx.ellipse(headX, headY, headR, headR * 0.92, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // ears — pointy triangles on top of head
+  // ears
   ctx.beginPath();
-  ctx.moveTo(hx - 7, hy - 7);
-  ctx.lineTo(hx - 12, hy - 22);
-  ctx.lineTo(hx - 1, hy - 8);
+  ctx.moveTo(headX - headR * 0.55, headY - headR * 0.55);
+  ctx.lineTo(headX - headR * 0.8,  headY - headR * 1.5);
+  ctx.lineTo(headX - headR * 0.05, headY - headR * 0.6);
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(hx + 1, hy - 8);
-  ctx.lineTo(hx + 10, hy - 22);
-  ctx.lineTo(hx + 7, hy - 7);
+  ctx.moveTo(headX + headR * 0.05, headY - headR * 0.6);
+  ctx.lineTo(headX + headR * 0.75, headY - headR * 1.5);
+  ctx.lineTo(headX + headR * 0.55, headY - headR * 0.55);
   ctx.fill();
 
   // inner ear
   ctx.fillStyle = '#e8a0b0';
   ctx.beginPath();
-  ctx.moveTo(hx - 6, hy - 8);
-  ctx.lineTo(hx - 10, hy - 18);
-  ctx.lineTo(hx - 2, hy - 9);
+  ctx.moveTo(headX - headR * 0.5,  headY - headR * 0.6);
+  ctx.lineTo(headX - headR * 0.68, headY - headR * 1.25);
+  ctx.lineTo(headX - headR * 0.1,  headY - headR * 0.65);
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(hx + 2, hy - 9);
-  ctx.lineTo(hx + 8, hy - 18);
-  ctx.lineTo(hx + 6, hy - 8);
+  ctx.moveTo(headX + headR * 0.1,  headY - headR * 0.65);
+  ctx.lineTo(headX + headR * 0.62, headY - headR * 1.25);
+  ctx.lineTo(headX + headR * 0.5,  headY - headR * 0.6);
   ctx.fill();
 
-  // eye — single side-on eye
+  // eye
   ctx.fillStyle = '#90d0f0';
+  const ex = headX + dir * headR * 0.3;
+  const ey = headY - headR * 0.05;
   ctx.beginPath();
-  ctx.ellipse(hx + dir * 4, hy - 2, 4, 4, 0, 0, Math.PI * 2);
+  ctx.ellipse(ex, ey, headR * 0.28, headR * 0.28, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#000';
+  ctx.fillStyle = '#111';
   ctx.beginPath();
-  ctx.ellipse(hx + dir * 4, hy - 2, 2, 3, 0, 0, Math.PI * 2);
+  ctx.ellipse(ex, ey, headR * 0.15, headR * 0.22, 0, 0, Math.PI * 2);
   ctx.fill();
-  // eye shine
   ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.ellipse(hx + dir * 5, hy - 4, 1, 1, 0, 0, Math.PI * 2);
+  ctx.ellipse(ex + headR * 0.08, ey - headR * 0.1, headR * 0.07, headR * 0.07, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // nose
   ctx.fillStyle = '#e87090';
+  const nx = headX + dir * headR * 0.72;
+  const ny = headY + headR * 0.18;
   ctx.beginPath();
-  ctx.moveTo(hx + dir * 11, hy + 3);
-  ctx.lineTo(hx + dir * 8,  hy + 6);
-  ctx.lineTo(hx + dir * 13, hy + 6);
+  ctx.moveTo(nx,            ny - headR * 0.1);
+  ctx.lineTo(nx - dir * headR * 0.18, ny + headR * 0.12);
+  ctx.lineTo(nx + dir * headR * 0.18, ny + headR * 0.12);
   ctx.fill();
 
   // mouth
   ctx.strokeStyle = '#c05060';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(hx + dir * 10, hy + 6);
-  ctx.quadraticCurveTo(hx + dir * 8, hy + 10, hx + dir * 6, hy + 9);
+  ctx.moveTo(nx, ny + headR * 0.12);
+  ctx.quadraticCurveTo(nx - dir * headR * 0.1, ny + headR * 0.32, nx - dir * headR * 0.28, ny + headR * 0.26);
   ctx.stroke();
 
   // whiskers
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
   ctx.lineWidth = 1;
-  for (const offset of [-4, 0, 4]) {
+  for (const row of [-1, 0, 1]) {
     ctx.beginPath();
-    ctx.moveTo(hx + dir * 10, hy + 4 + offset * 0.3);
-    ctx.lineTo(hx + dir * 26, hy + 2 + offset);
+    ctx.moveTo(nx - dir * headR * 0.1, ny + row * headR * 0.1);
+    ctx.lineTo(nx + dir * headR * 1.1, ny + row * headR * 0.25);
     ctx.stroke();
   }
 
-  // legs — two front, two back
-  ctx.fillStyle = legColor;
-  ctx.beginPath(); ctx.ellipse(bx - 10, by + 16, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(bx - 2,  by + 16, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(bx + 6,  by + 16, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(bx + 14, by + 16, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
-
-  // paws
-  ctx.fillStyle = c;
-  ctx.beginPath(); ctx.ellipse(bx - 10, by + 22, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(bx - 2,  by + 22, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(bx + 6,  by + 22, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(bx + 14, by + 22, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-
-  ctx.restore();
+  // legs
+  const legSpread = [-0.55, -0.18, 0.18, 0.55];
+  for (const lx of legSpread) {
+    ctx.fillStyle = legColor;
+    ctx.beginPath();
+    ctx.ellipse(bodyX + lx * s, footY - s * 0.35, s * 0.2, s * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.ellipse(bodyX + lx * s, footY - s * 0.02, s * 0.26, s * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
