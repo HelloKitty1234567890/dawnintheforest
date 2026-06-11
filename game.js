@@ -1159,19 +1159,19 @@ function drawNPCs() {
     }
   }
 
-  // Mate follows player around camp
+  // Mate stands near the nursery with a heart
   if (mate && !currentDen) {
-    const mateTargetX = cat.x + 40;
-    const mx = mateTargetX - cameraX;
-    drawCat(mx, GROUND_Y, 1, mate.color, mate.leg, 22);
-    // heart above mate
-    ctx.fillStyle = '#ff6090';
-    ctx.font = '14px Georgia';
-    ctx.textAlign = 'center';
-    ctx.fillText('💕', mx, GROUND_Y - 68);
-    ctx.fillStyle = '#ffb0c8';
-    ctx.font = '11px Georgia';
-    ctx.fillText(mate.name, mx, GROUND_Y - 54);
+    const mx = NURSERY_X + 160 - cameraX;
+    if (mx > -60 && mx < W + 60) {
+      drawCat(mx, GROUND_Y, 0, mate.color, mate.leg, 22);
+      ctx.fillStyle = '#ff6090';
+      ctx.font = '14px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText('💕', mx, GROUND_Y - 68);
+      ctx.fillStyle = '#ffb0c8';
+      ctx.font = '11px Georgia';
+      ctx.fillText(mate.name, mx, GROUND_Y - 54);
+    }
   }
 }
 
