@@ -171,6 +171,11 @@ function lerpColor(a, b, t) {
   return '#' + [r,g,bv].map(v => v.toString(16).padStart(2,'0')).join('');
 }
 
+// Mate system
+let mate = null; // { name, color, leg } once chosen
+let mateAsked = false; // waiting for response
+let mateTimer = 0;
+
 function isNight() { return dayTime < 0.22 || dayTime > 0.80; }
 function isDawn()  { return dayTime >= 0.22 && dayTime < 0.35; }
 function isDusk()  { return dayTime >= 0.68 && dayTime <= 0.80; }
@@ -207,6 +212,8 @@ function startGame() {
   xp            = 0;
   ceremonyTimer = 0;
   dayTime       = 0.25;
+  mate          = null;
+  mateAsked     = false;
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -281,9 +288,34 @@ function update() {
         if (d < nearDist) { nearDist = d; nearest = i; }
       });
       if (nearDist < 80) {
-        dialogue = { speaker: den.cats[nearest].name, text: den.cats[nearest].line };
-        dialogueTimer = 200;
-        keys['t'] = false;
+        const nearCat = den.cats[nearest];
+        // mate asking — only warriors, only in warriors den, only cats that aren't already your mate
+        if (stage === 2 && den.id === 'warriors' && !mate && keys['m']) {
+          // handled below
+        } else {
+          const mateHint = stage === 2 && den.id === 'warriors' && !mate
+            ? ' (Press M to ask to be mates)' : '';
+          dialogue = { speaker: nearCat.name, text: nearCat.line + mateHint };
+          dialogueTimer = 220;
+          keys['t'] = false;
+        }
+      }
+    }
+
+    // M to ask a cat to be your mate (warrior only, warriors den)
+    if (keys['m'] && stage === 2 && den.id === 'warriors' && !mate && !dialogue) {
+      const denCatXs = den.cats.map((_, i) => denCatX(den, i));
+      let nearest = 0, nearDist = 9999;
+      denCatXs.forEach((cx, i) => {
+        const d = Math.abs(cat.x - cx);
+        if (d < nearDist) { nearDist = d; nearest = i; }
+      });
+      if (nearDist < 80) {
+        const chosen = den.cats[nearest];
+        mate = { name: chosen.name, color: chosen.color, leg: chosen.leg };
+        dialogue = { speaker: chosen.name, text: `${catName()}... I would be honoured to be your mate. My heart is yours. 💕` };
+        dialogueTimer = 280;
+        keys['m'] = false;
       }
     }
     if (keys['q'] || keys['escape']) {
@@ -612,7 +644,8 @@ function drawDenInterior() {
   // Exit hint
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '11px Georgia';
-  ctx.fillText('A/D move   T talk   Q leave den', W/2, H - 10);
+  const mateHint = stage === 2 && currentDen === 'warriors' && !mate ? '   M ask to be mates' : '';
+  ctx.fillText('A/D move   T talk   Q leave' + mateHint, W/2, H - 10);
 }
 
 function drawFishing() {
@@ -1053,8 +1086,23 @@ function drawNPCs() {
       ctx.fillStyle = '#ffe080';
       ctx.font = '11px Georgia';
       ctx.textAlign = 'center';
-      ctx.fillText('Press T to talk',sx, GROUND_Y - npc.size * 2.8 - 8);
+      ctx.fillText('Press T to talk', sx, GROUND_Y - npc.size * 2.8 - 8);
     }
+  }
+
+  // Mate follows player around camp
+  if (mate && !currentDen) {
+    const mateTargetX = cat.x + 40;
+    const mx = mateTargetX - cameraX;
+    drawCat(mx, GROUND_Y, 1, mate.color, mate.leg, 22);
+    // heart above mate
+    ctx.fillStyle = '#ff6090';
+    ctx.font = '14px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('💕', mx, GROUND_Y - 68);
+    ctx.fillStyle = '#ffb0c8';
+    ctx.font = '11px Georgia';
+    ctx.fillText(mate.name, mx, GROUND_Y - 54);
   }
 }
 
@@ -1098,6 +1146,11 @@ function drawHUD() {
     ctx.fillStyle = '#ffe080';
     ctx.font = 'italic 12px Georgia';
     ctx.fillText('⭐ Full Warrior of RiverClan', 12, 48);
+    if (mate) {
+      ctx.fillStyle = '#ff90b8';
+      ctx.font = '12px Georgia';
+      ctx.fillText('💕 Mate: ' + mate.name, 12, 65);
+    }
   }
 
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
