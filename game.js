@@ -65,15 +65,39 @@ document.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
 
 let cat, onGround, cameraX, dialogue, dialogueTimer, walkFrame;
 
+// Growth system
+// stage: 0=kit, 1=apprentice, 2=warrior
+let stage = 0;
+let xp = 0;
+const XP_TO_APPRENTICE = 300;
+const XP_TO_WARRIOR    = 700;
+const WARRIOR_SUFFIXES = ['storm','heart','fire','leap','splash','stream','ripple','pool','claw','tail'];
+let ceremonyTimer = 0;
+let ceremonyText  = '';
+let xpZones = []; // tracks which zones have been visited for xp
+
+function catSize() { return stage === 0 ? 12 : stage === 1 ? 17 : 22; }
+
+function catName() {
+  if (stage === 0) return prefix + 'kit';
+  if (stage === 1) return prefix + 'paw';
+  return prefix + WARRIOR_SUFFIXES[prefix.length % WARRIOR_SUFFIXES.length];
+}
+
 function startGame() {
   canvas.width  = W;
   canvas.height = H;
   cat = { x: 300, y: GROUND_Y, vx: 0, vy: 0 };
-  onGround    = true;
-  cameraX     = 0;
-  dialogue    = null;
+  onGround      = true;
+  cameraX       = 0;
+  dialogue      = null;
   dialogueTimer = 0;
-  walkFrame   = 0;
+  walkFrame     = 0;
+  stage         = 0;
+  xp            = 0;
+  ceremonyTimer = 0;
+  // XP zones spread across the world
+  xpZones = [200,350,500,650,800,950,1100,1250,1400].map(x => ({ x, visited: false }));
   requestAnimationFrame(loop);
 }
 
@@ -113,6 +137,34 @@ function update() {
       dialogueTimer = 200;
       keys['e'] = false;
     }
+  }
+
+  // Earn XP by visiting new zones
+  for (const zone of xpZones) {
+    if (!zone.visited && Math.abs(cat.x - zone.x) < 60) {
+      zone.visited = true;
+      xp += 80;
+    }
+  }
+  // Also earn XP slowly just by moving
+  if (cat.vx !== 0) xp += 0.08;
+
+  // Stage up!
+  if (stage === 0 && xp >= XP_TO_APPRENTICE) {
+    stage = 1;
+    xp = XP_TO_APPRENTICE;
+    ceremonyText = `Let all cats old enough to catch their own prey gather here beneath the Highledge! ${catName()} has reached the age of an apprentice. From this day on, until you receive your warrior name, you shall be known as ${catName()}!`;
+    ceremonyTimer = 400;
+    dialogue = { speaker: 'Ripplestar', text: ceremonyText };
+    dialogueTimer = 400;
+  }
+  if (stage === 1 && xp >= XP_TO_WARRIOR) {
+    stage = 2;
+    xp = XP_TO_WARRIOR;
+    ceremonyText = `${catName()}! You have trained hard and shown true courage. From this day forward you shall be known as ${catName()}!`;
+    ceremonyTimer = 400;
+    dialogue = { speaker: 'Ripplestar', text: ceremonyText };
+    dialogueTimer = 400;
   }
 
   cameraX = cat.x - W / 3;
@@ -323,20 +375,50 @@ function drawNPCs() {
 }
 
 function drawPlayer() {
-  drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', 12, walkFrame);
+  const sz = catSize();
+  drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', sz, walkFrame);
   ctx.fillStyle = '#aadfc8';
   ctx.font = 'bold 12px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText(kitName, cat.x - cameraX, cat.y - 30);
+  ctx.fillText(catName(), cat.x - cameraX, cat.y - sz * 2.6);
 }
 
 function drawHUD() {
+  // Name + stage
+  const stageLabel = ['Kit', 'Apprentice', 'Warrior'][stage];
   ctx.fillStyle = '#aadfc8';
   ctx.font = '15px Georgia';
   ctx.textAlign = 'left';
-  ctx.fillText(kitName + ' — RiverClan', 12, 24);
+  ctx.fillText(catName() + ' — RiverClan  (' + stageLabel + ')', 12, 24);
+
+  // XP bar
+  if (stage < 2) {
+    const maxXp = stage === 0 ? XP_TO_APPRENTICE : XP_TO_WARRIOR;
+    const barW = 160, barH = 10;
+    const filled = Math.min((xp / maxXp) * barW, barW);
+    const label = stage === 0 ? 'To Apprentice' : 'To Warrior';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(12, 32, barW, barH);
+    const barGrad = ctx.createLinearGradient(12, 0, 12 + barW, 0);
+    barGrad.addColorStop(0, '#3a8a5a');
+    barGrad.addColorStop(1, '#7ec8a0');
+    ctx.fillStyle = barGrad;
+    ctx.fillRect(12, 32, filled, barH);
+    ctx.strokeStyle = '#aadfc8';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(12, 32, barW, barH);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '10px Georgia';
+    ctx.fillText(label, 12, 54);
+  } else {
+    ctx.fillStyle = '#ffe080';
+    ctx.font = 'italic 12px Georgia';
+    ctx.fillText('⭐ Full Warrior of RiverClan', 12, 48);
+  }
+
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '11px Georgia';
+  ctx.textAlign = 'left';
   ctx.fillText('A/D move   W jump   E talk', 12, H - 12);
 }
 
