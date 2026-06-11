@@ -48,6 +48,7 @@ let cameraX;
 let showName;
 let dialogue;
 let dialogueTimer;
+let walkFrame = 0;
 
 const ripplestar = { x: 320, y: GROUND_Y, w: 44, h: 44 };
 
@@ -87,6 +88,10 @@ function update() {
   cat.vy += GRAVITY;
   cat.x += cat.vx;
   cat.y += cat.vy;
+
+  // advance walk animation when moving
+  if (cat.vx !== 0 && onGround) walkFrame++;
+  else walkFrame = 0;
 
   // ground collision
   if (cat.y + cat.h >= GROUND_Y) {
@@ -163,7 +168,7 @@ function draw() {
   }
 
   // Player cat — tiny kit
-  drawCat(cat.x - cameraX, GROUND_Y, cat.vx, '#4a4a5a', '#6a6a7a', 12);
+  drawCat(cat.x - cameraX, GROUND_Y, cat.vx, '#4a4a5a', '#6a6a7a', 12, walkFrame);
 
   // Name tag — always visible above kit
   ctx.fillStyle = '#aadfc8';
@@ -218,7 +223,7 @@ function drawTrees(camX) {
 
 // draws a cute forward-facing chubby cat, bottom-centre at (x, groundY)
 // s = size (adult 22, kit 12)
-function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22) {
+function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22, walk = 0) {
   const c = color;
 
   const bx = x;
@@ -327,23 +332,27 @@ function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22
     }
   }
 
-  // two front paws poking out from under body — like in the photo
+  // walking paws — alternate stepping when walk > 0
+  const swing = Math.sin(walk * 0.3) * s * 0.18;
+  const leftY  = groundY - s * 0.1 + swing;
+  const rightY = groundY - s * 0.1 - swing;
+
   ctx.fillStyle = legColor;
   ctx.beginPath();
-  ctx.ellipse(bx - s * 0.38, groundY - s * 0.1, s * 0.28, s * 0.18, 0, 0, Math.PI * 2);
+  ctx.ellipse(bx - s * 0.38, leftY,  s * 0.28, s * 0.18, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(bx + s * 0.38, groundY - s * 0.1, s * 0.28, s * 0.18, 0, 0, Math.PI * 2);
+  ctx.ellipse(bx + s * 0.38, rightY, s * 0.28, s * 0.18, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // toe lines on paws
+  // toe lines
   ctx.strokeStyle = 'rgba(0,0,0,0.2)';
   ctx.lineWidth = 1;
-  for (const px of [bx - s * 0.38, bx + s * 0.38]) {
+  for (const [px, py] of [[bx - s * 0.38, leftY], [bx + s * 0.38, rightY]]) {
     for (const toe of [-0.12, 0, 0.12]) {
       ctx.beginPath();
-      ctx.moveTo(px + toe * s, groundY - s * 0.18);
-      ctx.lineTo(px + toe * s, groundY - s * 0.02);
+      ctx.moveTo(px + toe * s, py - s * 0.08);
+      ctx.lineTo(px + toe * s, py + s * 0.08);
       ctx.stroke();
     }
   }
