@@ -39,13 +39,15 @@ const JUMP_FORCE = -11;
 const SPEED = 3;
 const GROUND_Y = H - 60;
 
-// Camp layout — world positions
-const CAMP_START = 200;
-const NURSERY_X   = 280;
-const LEADERS_X   = 600;
-const WARRIORS_X  = 950;
-const MEDICINE_X  = 1250;
-const WORLD_WIDTH = 1600;
+// World layout
+const FOREST_START = 0;
+const FOREST_END   = 1800;  // forest to the left of camp
+const CAMP_START   = 1800;
+const NURSERY_X    = 1980;
+const LEADERS_X    = 2300;
+const WARRIORS_X   = 2650;
+const MEDICINE_X   = 2950;
+const WORLD_WIDTH  = 3200;
 
 // NPC cats
 const NPCS = [
@@ -104,8 +106,20 @@ const DENS = [
     ]},
 ];
 
+// Forest prey
+const PREY_TYPES = [
+  { name: 'mouse',  color: '#8a6a50', size: 6,  xp: 40,  msg: 'You caught a mouse!' },
+  { name: 'vole',   color: '#7a5a40', size: 7,  xp: 45,  msg: 'You caught a vole!' },
+  { name: 'rabbit', color: '#c8a878', size: 10, xp: 70,  msg: 'You caught a rabbit!' },
+  { name: 'bird',   color: '#6a7a9a', size: 8,  xp: 60,  msg: 'You caught a starling!' },
+];
+let forestPrey = []; // live prey scurrying around
+let preyCount = 0;
+let pouncing = false;
+let pounceTimer = 0;
+
 // Fishing
-const RIVER_EDGE = GROUND_Y; // cat stands here to fish
+const RIVER_EDGE = GROUND_Y;
 let fishing = false;       // is the player in fishing mode
 let fishTimer = 0;         // countdown until fish jumps
 let fishVisible = false;   // fish is splashing
@@ -183,7 +197,7 @@ function catName() {
 function startGame() {
   canvas.width  = W;
   canvas.height = H;
-  cat = { x: 300, y: GROUND_Y, vx: 0, vy: 0 };
+  cat = { x: NURSERY_X - 100, y: GROUND_Y, vx: 0, vy: 0 };
   onGround      = true;
   cameraX       = 0;
   dialogue      = null;
@@ -194,6 +208,24 @@ function startGame() {
   ceremonyTimer = 0;
   dayTime       = 0.25;
   currentDen    = null;
+  // Spawn forest prey
+  forestPrey = [];
+  for (let i = 0; i < 14; i++) {
+    const type = PREY_TYPES[Math.floor(Math.random() * PREY_TYPES.length)];
+    forestPrey.push({
+      ...type,
+      x: 80 + Math.random() * (FOREST_END - 200),
+      y: GROUND_Y,
+      vx: (Math.random() - 0.5) * 1.2,
+      scared: false,
+      scaredTimer: 0,
+      caught: false,
+      fleeTimer: 0,
+    });
+  }
+  preyCount  = 0;
+  pouncing   = false;
+  pounceTimer = 0;
   fishing       = false;
   fishTimer     = 0;
   fishVisible   = false;
@@ -313,9 +345,67 @@ function update() {
 
   dayTime = (dayTime + DAY_SPEED) % 1;
 
+  // Forest prey movement
+  const inForest = cat.x < FOREST_END && !currentDen;
+  for (const p of forestPrey) {
+    if (p.caught) continue;
+    // flee if cat is close
+    const dist = Math.abs(cat.x - p.x);
+    if (dist < 120 && inForest) {
+      p.scared = true;
+      p.vx = p.x < cat.x ? -1.8 : 1.8;
+      if (p.name === 'bird' && dist < 60) p.y = Math.max(GROUND_Y - 60, p.y - 2); // birds fly up
+    } else {
+      p.scared = false;
+      if (Math.random() < 0.01) p.vx = (Math.random() - 0.5) * 1.2;
+      if (p.name === 'bird') p.y += (GROUND_Y - p.y) * 0.05; // birds land
+    }
+    p.x += p.vx;
+    // bounce off forest edges
+    if (p.x < 40)            { p.x = 40;            p.vx *= -1; }
+    if (p.x > FOREST_END - 40) { p.x = FOREST_END - 40; p.vx *= -1; }
+    if (p.y > GROUND_Y) p.y = GROUND_Y;
+  }
+
+  // Pounce with F in forest
+  if (inForest && keys['f'] && !pouncing && !dialogue && onGround) {
+    pouncing = true;
+    pounceTimer = 18;
+    cat.vy = -8;
+    onGround = false;
+    keys['f'] = false;
+  }
+  if (pouncing) {
+    pounceTimer--;
+    if (pounceTimer <= 0 || onGround) {
+      pouncing = false;
+      // check if landed on any prey
+      for (const p of forestPrey) {
+        if (!p.caught && Math.abs(cat.x - p.x) < 30 && Math.abs(cat.y - p.y) < 30) {
+          p.caught = true;
+          preyCount++;
+          xp += p.xp;
+          dialogue = { speaker: catName(), text: p.msg + ' (' + preyCount + ' caught)' };
+          dialogueTimer = 120;
+          // respawn after a while
+          setTimeout(() => {
+            p.caught = false;
+            p.x = 80 + Math.random() * (FOREST_END - 200);
+            p.y = GROUND_Y;
+          }, 8000);
+          break;
+        }
+      }
+      if (!dialogue && pounceTimer <= 0) {
+        dialogue = { speaker: catName(), text: 'Missed! The ' + (forestPrey.find(p => !p.caught && Math.abs(cat.x - p.x) < 80)?.name || 'prey') + ' got away.' };
+        dialogueTimer = 80;
+      }
+    }
+  }
+
   // Fishing — only apprentices and warriors can hunt, kits can try too for fun
-  const atRiverEdge = cat.y >= GROUND_Y && cat.x > 100;
-  if (atRiverEdge && keys['f'] && !fishing && !dialogue) {
+  const atRiverEdge = cat.y >= GROUND_Y && cat.x >= FOREST_END;
+  if (atRiverEdge && keys['f'] && !fishing && !dialogue && !pouncing) {
     fishing = true;
     fishTimer = 60 + Math.random() * 80; // fish jumps after random delay
     fishVisible = false;
@@ -369,8 +459,10 @@ function draw() {
     drawDenInterior();
   } else {
     drawBackground();
+    if (cat.x < FOREST_END) drawForestDetails();
     drawCamp();
     drawNPCs();
+    drawPrey();
     drawFishing();
     drawPlayer();
   }
@@ -537,8 +629,8 @@ function drawFishing() {
     }
   }
 
-  // F to fish hint
-  if (!fishing && !dialogue && cat.y >= GROUND_Y) {
+  // F to fish hint (only in camp area)
+  if (!fishing && !dialogue && cat.y >= GROUND_Y && cat.x >= FOREST_END) {
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.font = '11px Georgia';
     ctx.textAlign = 'center';
@@ -708,6 +800,117 @@ function drawTrees() {
     ctx.beginPath(); ctx.arc(x+6, GROUND_Y-100, 32, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#1a5a1a';
     ctx.beginPath(); ctx.arc(x+6, GROUND_Y-118, 22, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawForestDetails() {
+  const col = skyColors();
+  // Darker forest floor
+  const forestRight = FOREST_END - cameraX;
+  if (forestRight > 0) {
+    ctx.fillStyle = isNight() ? '#111a0a' : '#1e3212';
+    ctx.fillRect(0, GROUND_Y, Math.min(forestRight, W), H - GROUND_Y);
+    ctx.fillStyle = isNight() ? '#1a2a10' : '#2a4018';
+    ctx.fillRect(0, GROUND_Y, Math.min(forestRight, W), 6);
+  }
+
+  // Dense undergrowth — ferns and bushes
+  const bushPositions = [80,200,340,480,620,760,920,1080,1220,1380,1520,1660];
+  for (const bx of bushPositions) {
+    const sx = bx - cameraX * 0.95;
+    if (sx < -60 || sx > W + 20) continue;
+    // bush
+    ctx.fillStyle = isNight() ? '#1a3010' : '#2a5018';
+    ctx.beginPath(); ctx.ellipse(sx, GROUND_Y - 10, 28, 16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = isNight() ? '#223818' : '#386828';
+    ctx.beginPath(); ctx.ellipse(sx - 10, GROUND_Y - 14, 18, 12, -0.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx + 12, GROUND_Y - 12, 16, 11, 0.2, 0, Math.PI*2); ctx.fill();
+    // fern fronds
+    ctx.strokeStyle = isNight() ? '#1e3a14' : '#3a6020';
+    ctx.lineWidth = 1.5;
+    for (let f = -2; f <= 2; f++) {
+      ctx.beginPath();
+      ctx.moveTo(sx + f*8, GROUND_Y);
+      ctx.quadraticCurveTo(sx + f*12, GROUND_Y - 18, sx + f*8 - 8, GROUND_Y - 22);
+      ctx.stroke();
+    }
+  }
+
+  // Forest sign at boundary
+  const signX = FOREST_END - cameraX;
+  if (signX > 0 && signX < W) {
+    ctx.fillStyle = '#5a3a18';
+    ctx.fillRect(signX - 2, GROUND_Y - 50, 4, 50);
+    ctx.fillStyle = '#8a5a28';
+    ctx.fillRect(signX - 22, GROUND_Y - 68, 44, 20);
+    ctx.fillStyle = '#e8d5a3';
+    ctx.font = '9px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('← Forest', signX, GROUND_Y - 54);
+    ctx.fillText('Camp →',   signX, GROUND_Y - 44);
+  }
+
+  // "F to hunt" hint in forest
+  if (cat.x < FOREST_END && !pouncing && !dialogue && onGround) {
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.font = '11px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Press F to pounce 🐭', cat.x - cameraX, GROUND_Y - 45);
+  }
+
+  // Prey count badge
+  if (preyCount > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(W - 90, 46, 80, 18);
+    ctx.fillStyle = '#e8c870';
+    ctx.font = '12px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText('🐭 × ' + preyCount, W - 14, 60);
+  }
+}
+
+function drawPrey() {
+  for (const p of forestPrey) {
+    if (p.caught) continue;
+    const sx = p.x - cameraX;
+    if (sx < -20 || sx > W + 20) continue;
+    const py = p.y;
+
+    if (p.name === 'bird') {
+      // bird
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.ellipse(sx, py - 8, 8, 5, 0, 0, Math.PI*2); ctx.fill();
+      // wings
+      ctx.fillStyle = '#8a9ab8';
+      ctx.beginPath(); ctx.ellipse(sx - 8, py - 10, 7, 3, -0.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(sx + 8, py - 10, 7, 3,  0.5, 0, Math.PI*2); ctx.fill();
+      // beak
+      ctx.fillStyle = '#e8c840';
+      ctx.beginPath(); ctx.moveTo(sx + 8, py - 8); ctx.lineTo(sx + 13, py - 7); ctx.lineTo(sx + 8, py - 6); ctx.fill();
+    } else {
+      // mouse/vole/rabbit — little scurrying critter
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.ellipse(sx, py - p.size * 0.6, p.size, p.size * 0.6, 0, 0, Math.PI*2); ctx.fill();
+      // head
+      ctx.beginPath(); ctx.ellipse(sx + p.size * 0.8, py - p.size * 0.7, p.size * 0.55, p.size * 0.5, 0, 0, Math.PI*2); ctx.fill();
+      // ears
+      ctx.beginPath(); ctx.ellipse(sx + p.size * 0.6, py - p.size * 1.2, 2, 4, -0.2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(sx + p.size * 0.9, py - p.size * 1.3, 2, 4,  0.2, 0, Math.PI*2); ctx.fill();
+      // eye
+      ctx.fillStyle = '#111';
+      ctx.beginPath(); ctx.arc(sx + p.size, py - p.size * 0.8, 1.2, 0, Math.PI*2); ctx.fill();
+      // tail
+      ctx.strokeStyle = p.color; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx - p.size, py - p.size * 0.4); ctx.quadraticCurveTo(sx - p.size * 1.6, py - p.size * 0.8, sx - p.size * 1.4, py - p.size * 1.3); ctx.stroke();
+    }
+
+    // scared indicator
+    if (p.scared) {
+      ctx.fillStyle = 'rgba(255,80,80,0.7)';
+      ctx.font = '10px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', sx, py - p.size * 2);
+    }
   }
 }
 
@@ -900,7 +1103,8 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '11px Georgia';
   ctx.textAlign = 'left';
-  ctx.fillText('A/D move   W jump   E enter den   T talk   F fish', 12, H - 12);
+  const hint = cat.x < FOREST_END ? 'A/D move   W jump   F pounce' : 'A/D move   W jump   E enter den   T talk   F fish';
+  ctx.fillText(hint, 12, H - 12);
 }
 
 function drawDialogue() {
