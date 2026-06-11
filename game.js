@@ -240,7 +240,7 @@ function update() {
     cat.x = Math.max(60, Math.min(W - 60, cat.x + cat.vx));
     if (cat.vx !== 0) walkFrame++; else walkFrame = 0;
 
-    if (keys['e'] && !dialogue) {
+    if (keys['t'] && !dialogue) {
       // find nearest den cat
       const denCatXs = den.cats.map((_, i) => denCatX(den, i));
       let nearest = 0, nearDist = 9999;
@@ -251,7 +251,7 @@ function update() {
       if (nearDist < 80) {
         dialogue = { speaker: den.cats[nearest].name, text: den.cats[nearest].line };
         dialogueTimer = 200;
-        keys['e'] = false;
+        keys['t'] = false;
       }
     }
     if (keys['q'] || keys['escape']) {
@@ -263,12 +263,12 @@ function update() {
   }
 
   for (const npc of NPCS) {
-    if (Math.abs(cat.x - npc.x) < 55 && keys['e'] && !dialogue) {
+    if (Math.abs(cat.x - npc.x) < 55 && keys['t'] && !dialogue) {
       const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
       const text = line.includes('NAME') ? line.replace('NAME', catName()) : line;
       dialogue = { speaker: npc.name, text };
       dialogueTimer = 200;
-      keys['e'] = false;
+      keys['t'] = false;
     }
   }
 
@@ -276,6 +276,7 @@ function update() {
   for (const den of DENS) {
     if (Math.abs(cat.x - den.x) < 22 && cat.y >= GROUND_Y - 5 && keys['e'] && !dialogue) {
       currentDen = den.id;
+      cat.x = W / 2;
       dialogue = null;
       keys['e'] = false;
       break;
@@ -505,7 +506,7 @@ function drawDenInterior() {
       ctx.fillRect(cx - 40, H - 80 - sz*2.8 - 18, 80, 14);
       ctx.fillStyle = '#ffe080';
       ctx.font = '10px Georgia';
-      ctx.fillText('Press E to talk', cx, H - 80 - sz*2.8 - 7);
+      ctx.fillText('Press T to talk',cx, H - 80 - sz*2.8 - 7);
     }
   });
 
@@ -519,7 +520,7 @@ function drawDenInterior() {
   // Exit hint
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '11px Georgia';
-  ctx.fillText('A/D move   E talk   Q leave den', W/2, H - 10);
+  ctx.fillText('A/D move   T talk   Q leave den', W/2, H - 10);
 }
 
 function drawFishing() {
@@ -532,7 +533,7 @@ function drawFishing() {
       ctx.fillStyle = '#ffe080';
       ctx.font = '11px Georgia';
       ctx.textAlign = 'center';
-      ctx.fillText('Press E to enter', sx, GROUND_Y - 88);
+      ctx.fillText('Press E to enter den', sx, GROUND_Y - 88);
     }
   }
 
@@ -849,7 +850,7 @@ function drawNPCs() {
       ctx.fillStyle = '#ffe080';
       ctx.font = '11px Georgia';
       ctx.textAlign = 'center';
-      ctx.fillText('Press E to talk', sx, GROUND_Y - npc.size * 2.8 - 8);
+      ctx.fillText('Press T to talk',sx, GROUND_Y - npc.size * 2.8 - 8);
     }
   }
 }
@@ -899,7 +900,7 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '11px Georgia';
   ctx.textAlign = 'left';
-  ctx.fillText('A/D move   W jump   E talk   F fish', 12, H - 12);
+  ctx.fillText('A/D move   W jump   E enter den   T talk   F fish', 12, H - 12);
 }
 
 function drawDialogue() {
