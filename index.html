@@ -7,8 +7,21 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Dawn in the Forest</h1>
-  <p>Coming soon...</p>
+  <div id="name-screen">
+    <h1>Dawn in the Forest</h1>
+    <p>An unofficial Warriors game</p>
+    <div id="name-box">
+      <label for="prefix">What is your kit's name prefix?</label>
+      <div id="name-preview"></div>
+      <input type="text" id="prefix" maxlength="12" placeholder="e.g. Ripple" autocomplete="off" />
+      <button id="start-btn">Join RiverClan!</button>
+    </div>
+  </div>
+
+  <div id="game-screen" style="display:none">
+    <canvas id="canvas"></canvas>
+  </div>
+
   <script src="game.js"></script>
 </body>
 </html>
