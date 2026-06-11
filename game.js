@@ -116,8 +116,8 @@ const DENS = [
     bg: '#18181a', wallColor: '#28283a',
     desc: 'A grand den draped with trailing ivy. The air smells of pine and authority.',
     cats: [
-      { name: 'Ripplestar',  color: '#f0f0f0', leg: '#e0e0e0', line: 'Welcome to my den. What do you need, young one?' },
-      { name: 'Silverdepth', color: '#b0c0d0', leg: '#90a0b0', line: 'I am the deputy. Ripplestar leads us all wisely.' },
+      { name: 'Ripplestar',  color: '#f0f0f0', leg: '#e0e0e0', line: 'Welcome to my den. What do you need, young one?', lineDeputy: 'You have served well as deputy. RiverClan is lucky to have you.', lineDead: '(Ripplestar has joined StarClan.)' },
+      { name: 'Silverdepth', color: '#b0c0d0', leg: '#90a0b0', line: 'I am the deputy. Ripplestar leads us all wisely.', lineDead: '(Silverdepth has joined StarClan.)' },
     ]},
   { id: 'warriors', x: WARRIORS_X, label: 'Warriors Den',
     bg: '#1a1810', wallColor: '#2a2818',
@@ -488,9 +488,18 @@ function update() {
             `Focus on your hunting crouch. Watch how I do it.`,
             `A good warrior is always ready. Are you ready?`,
           ];
-          const line = isMentor
-            ? mentorLines[Math.floor(Math.random() * mentorLines.length)]
-            : nearCat.line + mateHint;
+          let line;
+          if (isMentor) {
+            line = mentorLines[Math.floor(Math.random() * mentorLines.length)];
+          } else if (nearCat.name === 'Silverdepth' && stage >= 3) {
+            line = nearCat.lineDead || nearCat.line;
+          } else if (nearCat.name === 'Ripplestar' && stage >= 4) {
+            line = nearCat.lineDead || nearCat.line;
+          } else if (nearCat.name === 'Ripplestar' && stage === 3) {
+            line = nearCat.lineDeputy || nearCat.line;
+          } else {
+            line = nearCat.line + mateHint;
+          }
           dialogue = { speaker: nearCat.name, text: line };
           dialogueTimer = 220;
           keys['t'] = false;
@@ -646,15 +655,15 @@ function update() {
   if (stage === 2 && catPath === 'warrior' && xp >= XP_TO_DEPUTY) {
     stage = 3;
     xp = XP_TO_DEPUTY;
-    ceremonyText = `${catName()}! Your courage and loyalty are unmatched. I, Ripplestar, name you deputy of RiverClan! All cats honour the new deputy!`;
+    ceremonyText = `Let all cats gather! Silverdepth has walked with StarClan. We honour their memory. RiverClan needs a new deputy — ${catName()}, your courage and loyalty are unmatched. You are now deputy of RiverClan!`;
     dialogue = { speaker: 'Ripplestar', text: ceremonyText };
-    dialogueTimer = 420;
+    dialogueTimer = 480;
   }
   if (stage === 3 && xp >= XP_TO_LEADER && !readyForNineLives) {
     readyForNineLives = true;
     xp = XP_TO_LEADER;
-    dialogue = { speaker: 'Ripplestar', text: `${catName()}, RiverClan is ready for a new leader. Go to the Moonpool at night — StarClan is waiting to give you your nine lives!` };
-    dialogueTimer = 420;
+    dialogue = { speaker: 'Ripplestar', text: `${catName()}... my lives are spent. I go to join StarClan. You are RiverClan's leader now. Go to the Moonpool at night — StarClan will give you your nine lives. Lead them well...` };
+    dialogueTimer = 500;
   }
 
   dayTime = (dayTime + DAY_SPEED) % 1;
