@@ -662,18 +662,42 @@ function drawHUD() {
 }
 
 function drawDialogue() {
+  const maxW = W - 80;
+  const lines = wrapText(dialogue.text, maxW, '13px Georgia');
+  const boxH = 42 + lines.length * 18;
+
   ctx.fillStyle = 'rgba(0,0,0,0.82)';
-  ctx.fillRect(20, H - 110, W - 40, 82);
+  ctx.fillRect(20, H - boxH - 10, W - 40, boxH);
   ctx.strokeStyle = '#7ec8e3';
   ctx.lineWidth = 2;
-  ctx.strokeRect(20, H - 110, W - 40, 82);
+  ctx.strokeRect(20, H - boxH - 10, W - 40, boxH);
   ctx.fillStyle = '#7ec8e3';
   ctx.font = 'bold 14px Georgia';
   ctx.textAlign = 'left';
-  ctx.fillText(dialogue.speaker, 36, H - 88);
+  ctx.fillText(dialogue.speaker, 36, H - boxH + 8);
   ctx.fillStyle = '#e8d5a3';
-  ctx.font = '15px Georgia';
-  ctx.fillText(dialogue.text, 36, H - 65);
+  ctx.font = '13px Georgia';
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], 36, H - boxH + 26 + i * 18);
+  }
+}
+
+function wrapText(text, maxWidth, font) {
+  ctx.font = font;
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
 // ─── Cat drawing ─────────────────────────────────────────────────────────────
