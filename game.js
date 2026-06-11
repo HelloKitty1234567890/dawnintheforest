@@ -65,6 +65,18 @@ document.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
 
 let cat, onGround, cameraX, dialogue, dialogueTimer, walkFrame;
 
+// Fishing
+const RIVER_EDGE = GROUND_Y; // cat stands here to fish
+let fishing = false;       // is the player in fishing mode
+let fishTimer = 0;         // countdown until fish jumps
+let fishVisible = false;   // fish is splashing
+let fishX = 0;             // where the fish appears
+let fishY = 0;
+let fishTimer2 = 0;        // how long fish is visible
+let fishCaught = false;    // flash message
+let fishCaughtTimer = 0;
+let fishCount = 0;         // how many caught
+
 // Day/night cycle — 0 to 1 full cycle, 1 = one full day
 let dayTime = 0.25; // start at dawn
 const DAY_SPEED = 0.00008; // full cycle takes about 3 minutes
@@ -141,7 +153,13 @@ function startGame() {
   stage         = 0;
   xp            = 0;
   ceremonyTimer = 0;
-  dayTime = 0.25;
+  dayTime       = 0.25;
+  fishing       = false;
+  fishTimer     = 0;
+  fishVisible   = false;
+  fishCaught    = false;
+  fishCaughtTimer = 0;
+  fishCount     = 0;
   // XP zones spread across the world
   xpZones = [200,350,500,650,800,950,1100,1250,1400].map(x => ({ x, visited: false }));
   requestAnimationFrame(loop);
@@ -215,6 +233,49 @@ function update() {
 
   dayTime = (dayTime + DAY_SPEED) % 1;
 
+  // Fishing — only apprentices and warriors can hunt, kits can try too for fun
+  const atRiverEdge = cat.y >= GROUND_Y && cat.x > 100;
+  if (atRiverEdge && keys['f'] && !fishing && !dialogue) {
+    fishing = true;
+    fishTimer = 60 + Math.random() * 80; // fish jumps after random delay
+    fishVisible = false;
+    keys['f'] = false;
+  }
+  if (fishing) {
+    if (fishTimer > 0) {
+      fishTimer--;
+    } else if (!fishVisible) {
+      // fish jumps!
+      fishX = cat.x + (Math.random() * 60 - 30);
+      fishY = GROUND_Y - 10;
+      fishVisible = true;
+      fishTimer2 = 40; // window to catch it
+    }
+    if (fishVisible) {
+      fishTimer2--;
+      // press F again to catch while fish is visible
+      if (keys['f']) {
+        fishCaught  = true;
+        fishCaughtTimer = 90;
+        fishCount++;
+        xp += stage === 0 ? 60 : 100;
+        fishing     = false;
+        fishVisible = false;
+        keys['f']   = false;
+        dialogue = { speaker: catName(), text: fishCount === 1 ? 'I caught my first fish!' : 'Got one! ' + fishCount + ' fish caught!' };
+        dialogueTimer = 120;
+      }
+      if (fishTimer2 <= 0) {
+        // missed!
+        fishing     = false;
+        fishVisible = false;
+        dialogue    = { speaker: catName(), text: 'The fish got away...' };
+        dialogueTimer = 100;
+      }
+    }
+  }
+  if (fishCaughtTimer > 0) fishCaughtTimer--;
+
   cameraX = cat.x - W / 3;
   if (cameraX < 0) cameraX = 0;
   if (cameraX > WORLD_WIDTH - W) cameraX = WORLD_WIDTH - W;
@@ -227,9 +288,93 @@ function draw() {
   drawBackground();
   drawCamp();
   drawNPCs();
+  drawFishing();
   drawPlayer();
   drawHUD();
   if (dialogue) drawDialogue();
+}
+
+function drawFishing() {
+  // F to fish hint
+  if (!fishing && !dialogue && cat.y >= GROUND_Y) {
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '11px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Press F to fish 🐟', cat.x - cameraX, GROUND_Y - 45);
+  }
+
+  // Waiting ripple
+  if (fishing && !fishVisible) {
+    const rippleX = cat.x - cameraX;
+    const rippleY = GROUND_Y + 8;
+    ctx.strokeStyle = 'rgba(100,180,220,0.5)';
+    ctx.lineWidth = 1.5;
+    for (let r = 1; r <= 3; r++) {
+      ctx.beginPath();
+      ctx.ellipse(rippleX, rippleY, r*10, r*4, 0, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#e8d5a3';
+    ctx.font = '11px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('waiting...', rippleX, GROUND_Y - 45);
+  }
+
+  // Fish jumping!
+  if (fishVisible) {
+    const fx = fishX - cameraX;
+    const jumpH = (1 - fishTimer2 / 40);
+    const fy = GROUND_Y - 20 - Math.sin(jumpH * Math.PI) * 35;
+
+    // splash
+    ctx.strokeStyle = 'rgba(100,200,240,0.6)';
+    ctx.lineWidth = 1.5;
+    for (let i = -2; i <= 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(fx + i*6, GROUND_Y + 4);
+      ctx.lineTo(fx + i*9, GROUND_Y - 10);
+      ctx.stroke();
+    }
+
+    // fish body
+    ctx.fillStyle = '#60b8d0';
+    ctx.beginPath();
+    ctx.ellipse(fx, fy, 14, 6, -0.4, 0, Math.PI*2);
+    ctx.fill();
+    // scales shimmer
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(fx - 2, fy - 1, 5, 3, -0.4, 0, Math.PI*2);
+    ctx.fill();
+    // tail
+    ctx.fillStyle = '#4090a8';
+    ctx.beginPath();
+    ctx.moveTo(fx + 12, fy);
+    ctx.lineTo(fx + 20, fy - 7);
+    ctx.lineTo(fx + 20, fy + 7);
+    ctx.closePath(); ctx.fill();
+    // eye
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(fx - 7, fy - 1, 2, 0, Math.PI*2); ctx.fill();
+
+    // catch prompt — flashing
+    if (fishTimer2 > 10) {
+      ctx.fillStyle = `rgba(255,220,50,${0.7 + Math.sin(Date.now()*0.02)*0.3})`;
+      ctx.font = 'bold 14px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText('Press F to catch!', fx, GROUND_Y - 55);
+    }
+  }
+
+  // Fish count badge
+  if (fishCount > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(W - 90, 28, 80, 18);
+    ctx.fillStyle = '#60d0e8';
+    ctx.font = '12px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText('🐟 × ' + fishCount, W - 14, 42);
+  }
 }
 
 function drawBackground() {
@@ -513,7 +658,7 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '11px Georgia';
   ctx.textAlign = 'left';
-  ctx.fillText('A/D move   W jump   E talk', 12, H - 12);
+  ctx.fillText('A/D move   W jump   E talk   F fish', 12, H - 12);
 }
 
 function drawDialogue() {
