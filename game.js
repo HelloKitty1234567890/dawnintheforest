@@ -65,6 +65,32 @@ document.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
 
 let cat, onGround, cameraX, dialogue, dialogueTimer, walkFrame;
 
+// Den interiors
+// currentDen: null = outside, 'nursery'/'leaders'/'warriors'/'medicine'
+let currentDen = null;
+const DENS = [
+  { id: 'nursery',  x: NURSERY_X,  label: 'Nursery',
+    bg: '#1a2a10', wallColor: '#2a3a18',
+    desc: 'Soft moss and bracken line the floor. It smells like milk and warmth.',
+    npc: 'Mosswhisker', npcColor: '#b8926a', npcLeg: '#a07850',
+    npcLine: 'Rest here little one. You are safe in the nursery.' },
+  { id: 'leaders',  x: LEADERS_X,  label: "Leader's Den",
+    bg: '#18181a', wallColor: '#28283a',
+    desc: 'A grand den draped with trailing ivy. The air smells of pine and authority.',
+    npc: 'Ripplestar', npcColor: '#f0f0f0', npcLeg: '#e0e0e0',
+    npcLine: 'Welcome to my den. What do you need, young one?' },
+  { id: 'warriors', x: WARRIORS_X, label: 'Warriors Den',
+    bg: '#1a1810', wallColor: '#2a2818',
+    desc: 'Bracken nests are scattered around. It smells of earth and pine needles.',
+    npc: 'Stoneclaw',  npcColor: '#7a7a8a', npcLeg: '#5a5a6a',
+    npcLine: 'A warrior\'s den is no place for a kit. But you are brave to enter.' },
+  { id: 'medicine', x: MEDICINE_X, label: 'Medicine Den',
+    bg: '#101a10', wallColor: '#182a18',
+    desc: 'Bundles of herbs hang from the roof. The air smells sweet and strange.',
+    npc: 'Fernleaf',   npcColor: '#8ab870', npcLeg: '#6a9050',
+    npcLine: 'Careful! Don\'t knock over my herbs. Are you hurt?' },
+];
+
 // Fishing
 const RIVER_EDGE = GROUND_Y; // cat stands here to fish
 let fishing = false;       // is the player in fishing mode
@@ -154,6 +180,7 @@ function startGame() {
   xp            = 0;
   ceremonyTimer = 0;
   dayTime       = 0.25;
+  currentDen    = null;
   fishing       = false;
   fishTimer     = 0;
   fishVisible   = false;
@@ -193,13 +220,38 @@ function update() {
   // NPC interaction
   if (dialogueTimer > 0) { dialogueTimer--; if (dialogueTimer === 0) dialogue = null; }
 
+  if (currentDen) {
+    // Inside a den — E talks to the NPC inside, Q or Escape exits
+    const den = DENS.find(d => d.id === currentDen);
+    if (keys['e'] && !dialogue) {
+      dialogue = { speaker: den.npc, text: den.npcLine };
+      dialogueTimer = 180;
+      keys['e'] = false;
+    }
+    if (keys['q'] || keys['escape']) {
+      currentDen = null;
+      keys['q'] = false;
+    }
+    return; // skip outside update while inside den
+  }
+
   for (const npc of NPCS) {
     if (Math.abs(cat.x - npc.x) < 55 && keys['e'] && !dialogue) {
       const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
-      const text = npc.name === 'Ripplestar' ? line + (line.endsWith(',') ? ' ' + kitName + '.' : '') : line;
+      const text = npc.name === 'Ripplestar' ? line + (line.endsWith(',') ? ' ' + catName() + '.' : '') : line;
       dialogue = { speaker: npc.name, text };
       dialogueTimer = 200;
       keys['e'] = false;
+    }
+  }
+
+  // Enter a den
+  for (const den of DENS) {
+    if (Math.abs(cat.x - den.x) < 22 && cat.y >= GROUND_Y - 5 && keys['e'] && !dialogue) {
+      currentDen = den.id;
+      dialogue = null;
+      keys['e'] = false;
+      break;
     }
   }
 
@@ -285,16 +337,159 @@ function update() {
 
 function draw() {
   ctx.clearRect(0, 0, W, H);
-  drawBackground();
-  drawCamp();
-  drawNPCs();
-  drawFishing();
-  drawPlayer();
+  if (currentDen) {
+    drawDenInterior();
+  } else {
+    drawBackground();
+    drawCamp();
+    drawNPCs();
+    drawFishing();
+    drawPlayer();
+  }
   drawHUD();
   if (dialogue) drawDialogue();
 }
 
+function drawDenInterior() {
+  const den = DENS.find(d => d.id === currentDen);
+
+  // Background — dark cosy den walls
+  ctx.fillStyle = den.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Woven reed/bramble walls texture
+  ctx.fillStyle = den.wallColor;
+  ctx.fillRect(0, 0, W, 40);
+  ctx.fillRect(0, H - 80, W, 80);
+  ctx.fillRect(0, 0, 40, H);
+  ctx.fillRect(W - 40, 0, 40, H);
+
+  // Reed stripes on walls
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < W; i += 18) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(i, H-80); ctx.lineTo(i, H); ctx.stroke();
+  }
+
+  // Moss/earth floor
+  ctx.fillStyle = '#2a3a18';
+  ctx.fillRect(40, H - 80, W - 80, 80);
+  // moss patches
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = `rgba(40,${80+i*8},30,0.5)`;
+    ctx.beginPath();
+    ctx.ellipse(100 + i*80, H - 50, 28, 12, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Sleeping nests — moss circles
+  const nestPositions = [150, 320, 490, 620];
+  for (const nx of nestPositions) {
+    ctx.fillStyle = '#3a4a20';
+    ctx.beginPath(); ctx.ellipse(nx, H - 62, 38, 16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#4a5a28';
+    ctx.beginPath(); ctx.ellipse(nx, H - 64, 28, 12, 0, 0, Math.PI*2); ctx.fill();
+    // nest strands
+    ctx.strokeStyle = '#5a6a30';
+    ctx.lineWidth = 1;
+    for (let a = 0; a < Math.PI*2; a += 0.4) {
+      ctx.beginPath();
+      ctx.moveTo(nx, H-64);
+      ctx.lineTo(nx + Math.cos(a)*26, H-64 + Math.sin(a)*10);
+      ctx.stroke();
+    }
+  }
+
+  // Special den features
+  if (den.id === 'medicine') {
+    // Herb bundles hanging
+    const herbs = ['#6a9a40','#8aba50','#4a7a30','#aac060','#7aaa48'];
+    for (let i = 0; i < 5; i++) {
+      const hx = 120 + i * 130;
+      ctx.strokeStyle = '#6a5a30';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(hx, 40); ctx.lineTo(hx, 90); ctx.stroke();
+      ctx.fillStyle = herbs[i % herbs.length];
+      for (let j = -2; j <= 2; j++) {
+        ctx.beginPath();
+        ctx.ellipse(hx + j*5, 95 + Math.abs(j)*4, 4, 8, j*0.3, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  if (den.id === 'leaders') {
+    // Ivy trailing down walls
+    ctx.strokeStyle = '#3a6a20';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const vx = 80 + i * 180;
+      ctx.beginPath(); ctx.moveTo(vx, 40);
+      for (let y = 40; y < 160; y += 15) {
+        ctx.lineTo(vx + Math.sin(y*0.3)*12, y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#4a8a28';
+      for (let y = 55; y < 160; y += 20) {
+        ctx.beginPath();
+        ctx.ellipse(vx + Math.sin(y*0.3)*12, y, 8, 5, Math.sin(y)*0.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Dim light glow from entrance
+  const glow = ctx.createRadialGradient(W/2, H-40, 10, W/2, H-40, 120);
+  glow.addColorStop(0, 'rgba(180,160,80,0.15)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  // Den name
+  ctx.fillStyle = '#c8dfa0';
+  ctx.font = 'italic bold 18px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText(den.label, W/2, 28);
+
+  // Description
+  ctx.fillStyle = 'rgba(220,210,170,0.7)';
+  ctx.font = 'italic 12px Georgia';
+  ctx.fillText(den.desc, W/2, 58);
+
+  // NPC cat inside
+  drawCat(W/2 + 120, H - 80, 0, den.npcColor, den.npcLeg, 22);
+  ctx.fillStyle = '#f0f0cc';
+  ctx.font = '11px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText(den.npc, W/2 + 120, H - 122);
+
+  // Player cat
+  drawCat(W/2 - 80, H - 80, 0, '#4a4a5a', '#6a6a7a', catSize(), walkFrame);
+  ctx.fillStyle = '#aadfc8';
+  ctx.font = 'bold 12px Georgia';
+  ctx.fillText(catName(), W/2 - 80, H - 105);
+
+  // Exit hint
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '11px Georgia';
+  ctx.fillText('E talk   Q leave den', W/2, H - 10);
+}
+
 function drawFishing() {
+  // Den entry hints
+  for (const den of DENS) {
+    if (Math.abs(cat.x - den.x) < 30) {
+      const sx = den.x - cameraX;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(sx - 44, GROUND_Y - 100, 88, 16);
+      ctx.fillStyle = '#ffe080';
+      ctx.font = '11px Georgia';
+      ctx.textAlign = 'center';
+      ctx.fillText('Press E to enter', sx, GROUND_Y - 88);
+    }
+  }
+
   // F to fish hint
   if (!fishing && !dialogue && cat.y >= GROUND_Y) {
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
