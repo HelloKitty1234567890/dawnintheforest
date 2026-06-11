@@ -393,19 +393,26 @@ function update() {
     if (keys['p'] && stage === 2 && den.id === 'nursery' && !apprentice && !dialogue && !namingKit) {
       const nurseryKits = kits.filter(k => k.stage === 0);
       if (nurseryKits.length > 0) {
-        const nearest = nurseryKits.reduce((best, k) => {
-          const kx = 140 + kits.indexOf(k) * 100;
+        // use the filtered index (i) so positions match how they are drawn
+        let chosen = null;
+        let chosenDist = 9999;
+        nurseryKits.forEach((k, i) => {
+          const kx = 140 + i * 100;
           const dist = Math.abs(cat.x - kx);
-          return dist < best.dist ? { k, kx, dist } : best;
-        }, { k: null, kx: 0, dist: 9999 });
-        if (nearest.dist < 110) {
-          apprentice = nearest.k;
+          if (dist < chosenDist) { chosenDist = dist; chosen = k; }
+        });
+        if (chosenDist < 130) {
+          apprentice = chosen;
           apprentice.stage = 1;
           apprentice.name = apprentice.prefix + 'paw';
           dialogue = { speaker: 'Ripplestar', text: `${catName()}, you have shown great wisdom and courage! From this day on, ${apprentice.name} is your apprentice. Mentor them well!` };
           dialogueTimer = 340;
           keys['p'] = false;
         }
+      } else {
+        dialogue = { speaker: catName(), text: `There are no kits in the nursery yet to take as an apprentice.` };
+        dialogueTimer = 180;
+        keys['p'] = false;
       }
     }
 
@@ -486,6 +493,10 @@ function update() {
       k.name  = k.prefix + 'pool';
       dialogue = { speaker: 'Ripplestar', text: `${k.name} has proven themselves a true warrior of RiverClan!` };
       dialogueTimer = 280;
+      if (apprentice === k) {
+        apprentice = null;
+        apprenticeOut = false;
+      }
     }
   }
 
@@ -774,7 +785,7 @@ function drawDenInterior() {
         ctx.fillRect(kx - 20, H - 80 - ks*2.8 - 14, 40 * pct, 5);
       }
       // "P — apprentice" prompt when player is nearby and eligible
-      if (k.stage === 0 && stage === 2 && !apprentice && Math.abs(cat.x - kx) < 110) {
+      if (k.stage === 0 && stage === 2 && !apprentice && Math.abs(cat.x - kx) < 130) {
         ctx.fillStyle = '#c8e0ff';
         ctx.font = 'bold 11px Georgia';
         ctx.textAlign = 'center';
