@@ -204,6 +204,7 @@ let mateTimer = 0;
 let kits = []; // { name, color, leg, stage, growTimer, prefix }
 let namingKit = false;
 let kitNameInput = '';
+let apprentice = null; // ref to the kit chosen as player's apprentice
 const KIT_GROW_TO_APP  = 1800;  // ~30 seconds of play
 const KIT_GROW_TO_WAR  = 4200;
 
@@ -256,6 +257,7 @@ function startGame() {
   kits          = [];
   namingKit     = false;
   kitNameInput  = '';
+  apprentice    = null;
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -365,6 +367,26 @@ function update() {
       namingKit = true;
       kitNameInput = '';
       keys['k'] = false;
+    }
+
+    // P to pick an apprentice from the nursery kits
+    if (keys['p'] && stage === 2 && den.id === 'nursery' && !apprentice && !dialogue && !namingKit) {
+      const nurseryKits = kits.filter(k => k.stage === 0);
+      if (nurseryKits.length > 0) {
+        const nearest = nurseryKits.reduce((best, k) => {
+          const kx = 140 + kits.indexOf(k) * 100;
+          const dist = Math.abs(cat.x - kx);
+          return dist < best.dist ? { k, kx, dist } : best;
+        }, { k: null, kx: 0, dist: 9999 });
+        if (nearest.dist < 110) {
+          apprentice = nearest.k;
+          apprentice.stage = 1;
+          apprentice.name = apprentice.prefix + 'paw';
+          dialogue = { speaker: 'Ripplestar', text: `${catName()}, you have shown great wisdom and courage! From this day on, ${apprentice.name} is your apprentice. Mentor them well!` };
+          dialogueTimer = 340;
+          keys['p'] = false;
+        }
+      }
     }
 
     if (keys['q'] || keys['escape']) {
@@ -726,6 +748,13 @@ function drawDenInterior() {
         ctx.fillStyle = '#aadfc8';
         ctx.fillRect(kx - 20, H - 80 - ks*2.8 - 14, 40 * pct, 5);
       }
+      // "P — apprentice" prompt when player is nearby and eligible
+      if (k.stage === 0 && stage === 2 && !apprentice && Math.abs(cat.x - kx) < 110) {
+        ctx.fillStyle = '#c8e0ff';
+        ctx.font = 'bold 11px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText('[P] Make apprentice', kx, H - 80 - ks*2.8 - 20);
+      }
     });
   }
 
@@ -754,7 +783,8 @@ function drawDenInterior() {
   ctx.textAlign = 'center';
   const mateHint = stage === 2 && currentDen === 'warriors' && !mate ? '   M ask to be mates' : '';
   const kitHint  = stage === 2 && mate && kits.length < 3 && currentDen === 'nursery' ? '   K have a kit' : '';
-  ctx.fillText('A/D move   T talk   Q leave' + mateHint + kitHint, W/2, H - 10);
+  const appHint  = stage === 2 && !apprentice && currentDen === 'nursery' && kits.some(k => k.stage === 0) ? '   P pick apprentice' : '';
+  ctx.fillText('A/D move   T talk   Q leave' + mateHint + kitHint + appHint, W/2, H - 10);
 }
 
 function drawFishing() {
@@ -1264,6 +1294,11 @@ function drawHUD() {
       ctx.fillStyle = '#ffd8a8';
       ctx.font = '12px Georgia';
       ctx.fillText('🐱 ' + kits.map(k => k.name).join('  '), 12, 82);
+    }
+    if (apprentice) {
+      ctx.fillStyle = '#c8e0ff';
+      ctx.font = '12px Georgia';
+      ctx.fillText('🐾 Apprentice: ' + apprentice.name, 12, 99);
     }
   }
 
