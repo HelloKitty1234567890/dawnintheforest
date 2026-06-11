@@ -56,7 +56,7 @@ function startGame() {
   canvas.width = W;
   canvas.height = H;
 
-  cat = { x: 120, y: GROUND_Y - 28, w: 24, h: 28, vx: 0, vy: 0 };
+  cat = { x: 120, y: GROUND_Y, w: 24, h: 1, vx: 0, vy: 0 };
   onGround = false;
   cameraX = 0;
   showName = true;
@@ -94,8 +94,8 @@ function update() {
   else walkFrame = 0;
 
   // ground collision
-  if (cat.y + cat.h >= GROUND_Y) {
-    cat.y = GROUND_Y - cat.h;
+  if (cat.y >= GROUND_Y) {
+    cat.y = GROUND_Y;
     cat.vy = 0;
     onGround = true;
   }
@@ -167,8 +167,8 @@ function draw() {
     ctx.fillText('Press E to talk', ripplestar.x - cameraX, GROUND_Y - 63);
   }
 
-  // Player cat — tiny kit
-  drawCat(cat.x - cameraX, GROUND_Y, cat.vx, '#4a4a5a', '#6a6a7a', 12, walkFrame);
+  // Player cat — tiny kit (cat.y is the ground contact point)
+  drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', 12, walkFrame);
 
   // Name tag — always visible above kit
   ctx.fillStyle = '#aadfc8';
