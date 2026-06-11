@@ -475,6 +475,12 @@ function update() {
 
   dayTime = (dayTime + DAY_SPEED) % 1;
 
+  // If apprentice already became a warrior, free the slot
+  if (apprentice && apprentice.stage === 2) {
+    apprentice = null;
+    apprenticeOut = false;
+  }
+
   // Apprentice trains faster while out on patrol
   if (apprentice && apprenticeOut && apprentice.stage === 1) {
     apprentice.growTimer += 2; // double speed while training
