@@ -46,6 +46,10 @@ let cat;
 let onGround;
 let cameraX;
 let showName;
+let dialogue;
+let dialogueTimer;
+
+const ripplestar = { x: 320, y: GROUND_Y - 24, w: 28, h: 24 };
 
 function startGame() {
   canvas.width = W;
@@ -55,6 +59,8 @@ function startGame() {
   onGround = false;
   cameraX = 0;
   showName = true;
+  dialogue = null;
+  dialogueTimer = 0;
   setTimeout(() => showName = false, 3000);
 
   requestAnimationFrame(loop);
@@ -91,6 +97,16 @@ function update() {
 
   // don't go left of start
   if (cat.x < 0) cat.x = 0;
+
+  // talk to Ripplestar
+  const nearRipplestar = Math.abs(cat.x - ripplestar.x) < 50;
+  if (nearRipplestar && keys['e']) {
+    dialogue = { speaker: 'Ripplestar', text: 'Hello little one.' };
+    dialogueTimer = 180;
+    keys['e'] = false;
+  }
+  if (dialogueTimer > 0) dialogueTimer--;
+  else dialogue = null;
 
   // camera follows cat
   cameraX = cat.x - W / 3;
@@ -129,6 +145,23 @@ function draw() {
   // Trees in background
   drawTrees(cameraX);
 
+  // Ripplestar
+  drawCat(ripplestar.x - cameraX, ripplestar.y, 0, '#f0f0f0', '#ffffff');
+  ctx.fillStyle = '#f0f0ee';
+  ctx.font = '12px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText('Ripplestar', ripplestar.x - cameraX + 14, ripplestar.y - 8);
+
+  // "press E" hint
+  if (Math.abs(cat.x - ripplestar.x) < 50 && !dialogue) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(ripplestar.x - cameraX - 28, ripplestar.y - 30, 84, 18);
+    ctx.fillStyle = '#ffe080';
+    ctx.font = '12px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('Press E to talk', ripplestar.x - cameraX + 14, ripplestar.y - 17);
+  }
+
   // Cat
   drawCat(cat.x - cameraX, cat.y, cat.vx);
 
@@ -149,7 +182,23 @@ function draw() {
   ctx.fillText(kitName + ' — RiverClan', 12, 24);
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '12px Georgia';
-  ctx.fillText('A/D move   W jump', 12, H - 12);
+  ctx.fillText('A/D move   W jump   E talk', 12, H - 12);
+
+  // Dialogue box
+  if (dialogue) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(20, H - 110, W - 40, 80);
+    ctx.strokeStyle = '#7ec8e3';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, H - 110, W - 40, 80);
+    ctx.fillStyle = '#7ec8e3';
+    ctx.font = 'bold 14px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText(dialogue.speaker, 36, H - 88);
+    ctx.fillStyle = '#e8d5a3';
+    ctx.font = '15px Georgia';
+    ctx.fillText(dialogue.text, 36, H - 65);
+  }
 }
 
 function drawTrees(camX) {
@@ -171,9 +220,9 @@ function drawTrees(camX) {
   }
 }
 
-function drawCat(x, y, vx) {
-  const c = '#4a4a5a'; // dark blue-gray
-  const lighter = '#6a6a7a';
+function drawCat(x, y, vx, color = '#4a4a5a', legColor = '#6a6a7a') {
+  const c = color;
+  const lighter = legColor;
   const nose = '#e8a0a0';
 
   // body
