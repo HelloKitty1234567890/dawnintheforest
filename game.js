@@ -72,23 +72,36 @@ const DENS = [
   { id: 'nursery',  x: NURSERY_X,  label: 'Nursery',
     bg: '#1a2a10', wallColor: '#2a3a18',
     desc: 'Soft moss and bracken line the floor. It smells like milk and warmth.',
-    npc: 'Mosswhisker', npcColor: '#b8926a', npcLeg: '#a07850',
-    npcLine: 'Rest here little one. You are safe in the nursery.' },
+    cats: [
+      { name: 'Mosswhisker', color: '#b8926a', leg: '#a07850', line: 'Rest here little one. You are safe in the nursery.' },
+      { name: 'Dawnpetal',   color: '#e8c8a0', leg: '#c8a880', line: 'Would you like to hear a story about the old days?' },
+      { name: 'Reedkit',     color: '#8a7a5a', leg: '#6a5a3a', line: 'Mew! Want to play moss-ball with me?' },
+      { name: 'Splashkit',   color: '#7a9aaa', leg: '#5a7a8a', line: 'I want to be a warrior one day! Do you?' },
+    ]},
   { id: 'leaders',  x: LEADERS_X,  label: "Leader's Den",
     bg: '#18181a', wallColor: '#28283a',
     desc: 'A grand den draped with trailing ivy. The air smells of pine and authority.',
-    npc: 'Ripplestar', npcColor: '#f0f0f0', npcLeg: '#e0e0e0',
-    npcLine: 'Welcome to my den. What do you need, young one?' },
+    cats: [
+      { name: 'Ripplestar',  color: '#f0f0f0', leg: '#e0e0e0', line: 'Welcome to my den. What do you need, young one?' },
+      { name: 'Silverdepth', color: '#b0c0d0', leg: '#90a0b0', line: 'I am the deputy. Ripplestar leads us all wisely.' },
+    ]},
   { id: 'warriors', x: WARRIORS_X, label: 'Warriors Den',
     bg: '#1a1810', wallColor: '#2a2818',
     desc: 'Bracken nests are scattered around. It smells of earth and pine needles.',
-    npc: 'Stoneclaw',  npcColor: '#7a7a8a', npcLeg: '#5a5a6a',
-    npcLine: 'A warrior\'s den is no place for a kit. But you are brave to enter.' },
+    cats: [
+      { name: 'Stoneclaw',   color: '#7a7a8a', leg: '#5a5a6a', line: 'A warrior\'s den is no place for a kit. But you are brave.' },
+      { name: 'Rushpelt',    color: '#8a6a40', leg: '#6a4a28', line: 'I just got back from dawn patrol. Those ThunderClan cats were snooping again.' },
+      { name: 'Pikefang',    color: '#5a6a5a', leg: '#3a4a3a', line: 'I caught five fish yesterday. Can you beat that?' },
+      { name: 'Willowshade', color: '#aab890', leg: '#8a9870', line: 'Shh, some of us are trying to sleep!' },
+      { name: 'Currentfoot', color: '#7a8a9a', leg: '#5a6a7a', line: 'RiverClan is the strongest Clan. We swim where others fear to walk.' },
+    ]},
   { id: 'medicine', x: MEDICINE_X, label: 'Medicine Den',
     bg: '#101a10', wallColor: '#182a18',
     desc: 'Bundles of herbs hang from the roof. The air smells sweet and strange.',
-    npc: 'Fernleaf',   npcColor: '#8ab870', npcLeg: '#6a9050',
-    npcLine: 'Careful! Don\'t knock over my herbs. Are you hurt?' },
+    cats: [
+      { name: 'Fernleaf',    color: '#8ab870', leg: '#6a9050', line: 'Careful! Don\'t knock over my herbs. Are you hurt?' },
+      { name: 'Mistpaw',     color: '#c0c8b0', leg: '#a0a890', line: 'I am training to be a medicine cat. These are marigold leaves — they help wounds heal.' },
+    ]},
 ];
 
 // Fishing
@@ -221,24 +234,38 @@ function update() {
   if (dialogueTimer > 0) { dialogueTimer--; if (dialogueTimer === 0) dialogue = null; }
 
   if (currentDen) {
-    // Inside a den — E talks to the NPC inside, Q or Escape exits
     const den = DENS.find(d => d.id === currentDen);
+    // Walk inside den with A/D, E to talk to nearest cat
+    if (keys['a']) cat.vx = -SPEED; else if (keys['d']) cat.vx = SPEED; else cat.vx = 0;
+    cat.x = Math.max(60, Math.min(W - 60, cat.x + cat.vx));
+    if (cat.vx !== 0) walkFrame++; else walkFrame = 0;
+
     if (keys['e'] && !dialogue) {
-      dialogue = { speaker: den.npc, text: den.npcLine };
-      dialogueTimer = 180;
-      keys['e'] = false;
+      // find nearest den cat
+      const denCatXs = den.cats.map((_, i) => denCatX(den, i));
+      let nearest = 0, nearDist = 9999;
+      denCatXs.forEach((cx, i) => {
+        const d = Math.abs(cat.x - cx);
+        if (d < nearDist) { nearDist = d; nearest = i; }
+      });
+      if (nearDist < 80) {
+        dialogue = { speaker: den.cats[nearest].name, text: den.cats[nearest].line };
+        dialogueTimer = 200;
+        keys['e'] = false;
+      }
     }
     if (keys['q'] || keys['escape']) {
       currentDen = null;
+      cat.x = den.x;
       keys['q'] = false;
     }
-    return; // skip outside update while inside den
+    return;
   }
 
   for (const npc of NPCS) {
     if (Math.abs(cat.x - npc.x) < 55 && keys['e'] && !dialogue) {
       const line = npc.lines[Math.floor(Math.random() * npc.lines.length)];
-      const text = npc.name === 'Ripplestar' ? line + (line.endsWith(',') ? ' ' + catName() + '.' : '') : line;
+      const text = line.includes('NAME') ? line.replace('NAME', catName()) : line;
       dialogue = { speaker: npc.name, text };
       dialogueTimer = 200;
       keys['e'] = false;
@@ -350,6 +377,12 @@ function draw() {
   if (dialogue) drawDialogue();
 }
 
+function denCatX(den, i) {
+  // spread cats evenly across den width
+  const spacing = W / (den.cats.length + 1);
+  return spacing * (i + 1);
+}
+
 function drawDenInterior() {
   const den = DENS.find(d => d.id === currentDen);
 
@@ -457,23 +490,36 @@ function drawDenInterior() {
   ctx.font = 'italic 12px Georgia';
   ctx.fillText(den.desc, W/2, 58);
 
-  // NPC cat inside
-  drawCat(W/2 + 120, H - 80, 0, den.npcColor, den.npcLeg, 22);
-  ctx.fillStyle = '#f0f0cc';
-  ctx.font = '11px Georgia';
-  ctx.textAlign = 'center';
-  ctx.fillText(den.npc, W/2 + 120, H - 122);
+  // Den cats
+  den.cats.forEach((c, i) => {
+    const cx = denCatX(den, i);
+    const sz = c.name.endsWith('kit') || c.name.endsWith('paw') ? 14 : 20;
+    drawCat(cx, H - 80, 0, c.color, c.leg, sz);
+    ctx.fillStyle = '#f0f0cc';
+    ctx.font = '11px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.name, cx, H - 80 - sz * 2.8);
+    // E hint if nearby
+    if (Math.abs(cat.x - cx) < 80) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(cx - 40, H - 80 - sz*2.8 - 18, 80, 14);
+      ctx.fillStyle = '#ffe080';
+      ctx.font = '10px Georgia';
+      ctx.fillText('Press E to talk', cx, H - 80 - sz*2.8 - 7);
+    }
+  });
 
   // Player cat
-  drawCat(W/2 - 80, H - 80, 0, '#4a4a5a', '#6a6a7a', catSize(), walkFrame);
+  drawCat(cat.x, H - 80, cat.vx, '#4a4a5a', '#6a6a7a', catSize(), walkFrame);
   ctx.fillStyle = '#aadfc8';
   ctx.font = 'bold 12px Georgia';
-  ctx.fillText(catName(), W/2 - 80, H - 105);
+  ctx.textAlign = 'center';
+  ctx.fillText(catName(), cat.x, H - 80 - catSize() * 2.6);
 
   // Exit hint
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '11px Georgia';
-  ctx.fillText('E talk   Q leave den', W/2, H - 10);
+  ctx.fillText('A/D move   E talk   Q leave den', W/2, H - 10);
 }
 
 function drawFishing() {
