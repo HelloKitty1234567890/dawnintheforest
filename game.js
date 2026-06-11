@@ -212,7 +212,7 @@ const KIT_GROW_TO_WAR  = 4200;
 function kitDisplayName(k) {
   if (k.stage === 0) return k.prefix + 'kit';
   if (k.stage === 1) return k.prefix + 'paw';
-  return k.prefix + 'pool'; // warrior suffix for kits
+  return k.prefix + WARRIOR_SUFFIXES[k.prefix.length % WARRIOR_SUFFIXES.length];
 }
 function kitSize(k) { return k.stage === 0 ? 9 : k.stage === 1 ? 14 : 19; }
 function kitDen(k)  { return k.stage === 0 ? 'nursery' : k.stage === 1 ? 'warriors' : 'warriors'; }
@@ -496,7 +496,7 @@ function update() {
       dialogueTimer = 280;
     } else if (k.stage === 1 && k.growTimer >= KIT_GROW_TO_WAR) {
       k.stage = 2;
-      k.name  = k.prefix + 'pool';
+      k.name  = k.prefix + WARRIOR_SUFFIXES[k.prefix.length % WARRIOR_SUFFIXES.length];
       dialogue = { speaker: 'Ripplestar', text: `${k.name} has proven themselves a true warrior of RiverClan!` };
       dialogueTimer = 280;
       if (apprentice === k) {
