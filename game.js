@@ -65,6 +65,51 @@ document.addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
 
 let cat, onGround, cameraX, dialogue, dialogueTimer, walkFrame;
 
+// Day/night cycle — 0 to 1 full cycle, 1 = one full day
+let dayTime = 0.25; // start at dawn
+const DAY_SPEED = 0.00008; // full cycle takes about 3 minutes
+
+// returns 0=night 0.25=dawn 0.5=day 0.75=dusk 1=night
+function skyColors() {
+  const t = dayTime;
+  // interpolate between key times
+  const stops = [
+    { t: 0.00, sky1: '#020510', sky2: '#0a1020', water: '#0a1a2a', ground: '#1a2a10' },
+    { t: 0.20, sky1: '#0d1b2a', sky2: '#1a3a4a', water: '#1a3a5a', ground: '#2a4a1a' }, // pre-dawn
+    { t: 0.28, sky1: '#c06020', sky2: '#e08030', water: '#2a4a6a', ground: '#3a5a2a' }, // dawn
+    { t: 0.38, sky1: '#4a90c8', sky2: '#80c0e8', water: '#2a6a8a', ground: '#2a5a1a' }, // morning
+    { t: 0.55, sky1: '#2a6aaa', sky2: '#60a8d8', water: '#1a5a7a', ground: '#2a5a1a' }, // day
+    { t: 0.72, sky1: '#c05818', sky2: '#e07830', water: '#2a4a5a', ground: '#2a4a18' }, // dusk
+    { t: 0.82, sky1: '#1a1a3a', sky2: '#2a2a5a', water: '#0a2a3a', ground: '#1a2a10' }, // evening
+    { t: 1.00, sky1: '#020510', sky2: '#0a1020', water: '#0a1a2a', ground: '#1a2a10' }, // night
+  ];
+  let a = stops[0], b = stops[1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t >= stops[i].t && t <= stops[i+1].t) { a = stops[i]; b = stops[i+1]; break; }
+  }
+  const f = (t - a.t) / (b.t - a.t);
+  return {
+    sky1:   lerpColor(a.sky1,   b.sky1,   f),
+    sky2:   lerpColor(a.sky2,   b.sky2,   f),
+    water:  lerpColor(a.water,  b.water,  f),
+    ground: lerpColor(a.ground, b.ground, f),
+  };
+}
+
+function lerpColor(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ar = (pa>>16)&255, ag = (pa>>8)&255, ab = pa&255;
+  const br = (pb>>16)&255, bg = (pb>>8)&255, bb = pb&255;
+  const r = Math.round(ar + (br-ar)*t);
+  const g = Math.round(ag + (bg-ag)*t);
+  const bv= Math.round(ab + (bb-ab)*t);
+  return '#' + [r,g,bv].map(v => v.toString(16).padStart(2,'0')).join('');
+}
+
+function isNight() { return dayTime < 0.22 || dayTime > 0.80; }
+function isDawn()  { return dayTime >= 0.22 && dayTime < 0.35; }
+function isDusk()  { return dayTime >= 0.68 && dayTime <= 0.80; }
+
 // Growth system
 // stage: 0=kit, 1=apprentice, 2=warrior
 let stage = 0;
@@ -96,6 +141,7 @@ function startGame() {
   stage         = 0;
   xp            = 0;
   ceremonyTimer = 0;
+  dayTime = 0.25;
   // XP zones spread across the world
   xpZones = [200,350,500,650,800,950,1100,1250,1400].map(x => ({ x, visited: false }));
   requestAnimationFrame(loop);
@@ -167,6 +213,8 @@ function update() {
     dialogueTimer = 400;
   }
 
+  dayTime = (dayTime + DAY_SPEED) % 1;
+
   cameraX = cat.x - W / 3;
   if (cameraX < 0) cameraX = 0;
   if (cameraX > WORLD_WIDTH - W) cameraX = WORLD_WIDTH - W;
@@ -185,35 +233,81 @@ function draw() {
 }
 
 function drawBackground() {
-  // Sky
+  const col = skyColors();
+
+  // Sky gradient
   const sky = ctx.createLinearGradient(0, 0, 0, H * 0.62);
-  sky.addColorStop(0, '#0d1b2a');
-  sky.addColorStop(1, '#1a3a4a');
+  sky.addColorStop(0, col.sky1);
+  sky.addColorStop(1, col.sky2);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H * 0.62);
 
-  // Stars
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  for (const [sx, sy] of [[80,30],[200,50],[340,20],[500,40],[650,25],[720,55],[150,70],[420,65]]) {
-    ctx.beginPath(); ctx.arc(sx, sy, 1.2, 0, Math.PI*2); ctx.fill();
+  // Stars — fade in at night/dusk/dawn
+  const starAlpha = isNight() ? 0.85 : isDawn() || isDusk() ? 0.35 : 0;
+  if (starAlpha > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${starAlpha})`;
+    for (const [sx, sy, r] of [
+      [80,25,1.4],[200,45,1.0],[340,18,1.6],[500,38,1.0],[650,22,1.4],
+      [720,52,1.0],[150,65,1.2],[420,60,0.9],[560,15,1.5],[300,35,0.8],
+      [700,30,1.1],[100,50,0.9],[450,28,1.3],[620,48,1.0],[260,55,0.8],
+    ]) {
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI*2); ctx.fill();
+    }
   }
 
-  // River
-  ctx.fillStyle = '#1a3a5a';
+  // Sun
+  const sunProgress = (dayTime - 0.28) / 0.5; // 0 at dawn, 1 at dusk
+  if (sunProgress >= 0 && sunProgress <= 1) {
+    const sunX = W * sunProgress;
+    const sunY = H * 0.55 - Math.sin(sunProgress * Math.PI) * H * 0.45;
+    const sunAlpha = isDawn() || isDusk() ? 0.7 : 1;
+    const sunColor = isDawn() || isDusk() ? '#ffaa40' : '#ffe080';
+    ctx.fillStyle = sunColor;
+    ctx.globalAlpha = sunAlpha;
+    ctx.beginPath(); ctx.arc(sunX, sunY, 18, 0, Math.PI*2); ctx.fill();
+    // glow
+    const glow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 40);
+    glow.addColorStop(0, 'rgba(255,220,80,0.3)');
+    glow.addColorStop(1, 'rgba(255,220,80,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(sunX, sunY, 40, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Moon
+  const moonProgress = dayTime < 0.22 ? dayTime / 0.22 : (dayTime - 0.80) / 0.20;
+  if (isNight()) {
+    const moonX = W * 0.7;
+    const moonY = 60;
+    ctx.fillStyle = '#e8e8c8';
+    ctx.beginPath(); ctx.arc(moonX, moonY, 14, 0, Math.PI*2); ctx.fill();
+    // crescent shadow
+    ctx.fillStyle = col.sky1;
+    ctx.beginPath(); ctx.arc(moonX + 5, moonY, 12, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Time of day label
+  const timeLabel = isNight() ? '🌙 Night' : isDawn() ? '🌅 Dawn' : isDusk() ? '🌆 Dusk' : '☀️ Day';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '11px Georgia';
+  ctx.textAlign = 'right';
+  ctx.fillText(timeLabel, W - 10, 20);
+
+  // River — tinted by time of day
+  ctx.fillStyle = col.water;
   ctx.fillRect(0, H * 0.62, W, H * 0.38);
-  ctx.fillStyle = 'rgba(100,180,220,0.12)';
+  ctx.fillStyle = 'rgba(180,220,255,0.08)';
   for (let i = 0; i < 6; i++) {
     const wx = ((i * 140 - cameraX * 0.2) % (W + 100)) - 50;
     ctx.fillRect(wx, H * 0.67, 60, 4);
   }
 
   // Ground
-  ctx.fillStyle = '#2a4a1a';
+  ctx.fillStyle = col.ground;
   ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
-  ctx.fillStyle = '#3a6a2a';
+  ctx.fillStyle = isNight() ? '#2a4a18' : '#3a6a2a';
   ctx.fillRect(0, GROUND_Y, W, 5);
 
-  // Background trees (parallax)
   drawTrees();
 }
 
