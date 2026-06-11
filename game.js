@@ -1467,6 +1467,9 @@ function drawCamp() {
   // Nursery den
   drawDen(NURSERY_X - cameraX, '🌿 Nursery', '#3a6a3a', '#2a5a2a');
 
+  // Apprentice den
+  drawDen(APPRENTICE_X - cameraX, '🐾 Apprentice Den', '#4a4a2a', '#3a3a1a');
+
   // Leader's den (higher, grander)
   drawDen(LEADERS_X - cameraX, "⭐ Leader's Den", '#4a4a6a', '#3a3a5a', true);
 
