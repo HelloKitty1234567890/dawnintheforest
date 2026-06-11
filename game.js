@@ -206,6 +206,7 @@ let namingKit = false;
 let kitNameInput = '';
 let apprentice = null; // ref to the kit chosen as player's apprentice
 let apprenticeOut = false; // true when apprentice is following player on patrol
+let mentor = null; // { name, color, leg } — assigned when player becomes apprentice
 const KIT_GROW_TO_APP  = 1800;  // ~30 seconds of play
 const KIT_GROW_TO_WAR  = 4200;
 
@@ -260,6 +261,7 @@ function startGame() {
   kitNameInput  = '';
   apprentice    = null;
   apprenticeOut = false;
+  mentor        = null;
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -341,7 +343,17 @@ function update() {
         } else {
           const mateHint = stage === 2 && den.id === 'warriors' && !mate
             ? ' (Press M to ask to be mates)' : '';
-          dialogue = { speaker: nearCat.name, text: nearCat.line + mateHint };
+          const isMentor = mentor && nearCat.name === mentor.name;
+          const mentorLines = [
+            `Come on ${catName()}, let's go on patrol together!`,
+            `You're getting better every day, ${catName()}. Keep practising!`,
+            `Focus on your hunting crouch. Watch how I do it.`,
+            `A good warrior is always ready. Are you ready?`,
+          ];
+          const line = isMentor
+            ? mentorLines[Math.floor(Math.random() * mentorLines.length)]
+            : nearCat.line + mateHint;
+          dialogue = { speaker: nearCat.name, text: line };
           dialogueTimer = 220;
           keys['t'] = false;
         }
@@ -459,7 +471,9 @@ function update() {
   if (stage === 0 && xp >= XP_TO_APPRENTICE) {
     stage = 1;
     xp = XP_TO_APPRENTICE;
-    ceremonyText = `Let all cats old enough to catch their own prey gather here beneath the Highledge! ${catName()} has reached the age of an apprentice. From this day on, until you receive your warrior name, you shall be known as ${catName()}!`;
+    const warriorCats = DENS.find(d => d.id === 'warriors').cats;
+    mentor = warriorCats[Math.floor(Math.random() * warriorCats.length)];
+    ceremonyText = `Let all cats old enough to catch their own prey gather here beneath the Highledge! From this day on you shall be known as ${catName()}! ${mentor.name} — you are ready for an apprentice. Train ${catName()} well!`;
     ceremonyTimer = 400;
     dialogue = { speaker: 'Ripplestar', text: ceremonyText };
     dialogueTimer = 400;
@@ -467,7 +481,9 @@ function update() {
   if (stage === 1 && xp >= XP_TO_WARRIOR) {
     stage = 2;
     xp = XP_TO_WARRIOR;
-    ceremonyText = `${catName()}! You have trained hard and shown true courage. From this day forward you shall be known as ${catName()}!`;
+    const m = mentor ? mentor.name : 'your mentor';
+    mentor = null;
+    ceremonyText = `${catName()}! You have trained hard and shown true courage. ${m} is proud of you. From this day forward you shall be known as ${catName()}!`;
     ceremonyTimer = 400;
     dialogue = { speaker: 'Ripplestar', text: ceremonyText };
     dialogueTimer = 400;
@@ -1326,6 +1342,11 @@ function drawHUD() {
     const label = stage === 0 ? 'To Apprentice' : 'To Warrior';
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(12, 32, barW, barH);
+    if (mentor) {
+      ctx.fillStyle = '#ffe0a8';
+      ctx.font = '12px Georgia';
+      ctx.fillText('🐾 Mentor: ' + mentor.name, 12, 54);
+    }
     const barGrad = ctx.createLinearGradient(12, 0, 12 + barW, 0);
     barGrad.addColorStop(0, '#3a8a5a');
     barGrad.addColorStop(1, '#7ec8a0');
