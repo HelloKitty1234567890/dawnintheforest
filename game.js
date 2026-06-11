@@ -222,6 +222,39 @@ function isNight() { return dayTime < 0.22 || dayTime > 0.80; }
 function isDawn()  { return dayTime >= 0.22 && dayTime < 0.35; }
 function isDusk()  { return dayTime >= 0.68 && dayTime <= 0.80; }
 
+// ─── ThunderClan Battle ───────────────────────────────────────────────────────
+let tcBattle = false;       // battle in progress
+let tcCats   = [];          // { x, hp, maxHp, color, leg, name, vx, hitFlash }
+let playerHp = 10;
+const PLAYER_MAX_HP = 10;
+let healTimer = 0;          // ticks between heals outside battle
+let swipeTimer = 0;         // brief swipe animation
+let battleWon  = false;     // show victory screen briefly
+let battleWonTimer = 0;
+
+const TC_CATS_DATA = [
+  { name: 'Tigerclaw',  color: '#8a6030', leg: '#6a4010' },
+  { name: 'Darkstripe', color: '#303030', leg: '#202020' },
+  { name: 'Longtail',   color: '#d0c890', leg: '#b0a870' },
+  { name: 'Dustpelt',   color: '#a08050', leg: '#806030' },
+  { name: 'Sandpaw',    color: '#e0c870', leg: '#c0a850' },
+];
+
+function startBattle() {
+  if (tcBattle || stage < 1) return;
+  tcBattle = true;
+  battleWon = false;
+  // spawn 3–4 ThunderClan cats on the left side of the forest
+  const count = 3 + (stage === 2 ? 1 : 0);
+  tcCats = [];
+  for (let i = 0; i < count; i++) {
+    const data = TC_CATS_DATA[i % TC_CATS_DATA.length];
+    tcCats.push({ ...data, x: 100 + i * 180, hp: 4, maxHp: 4, vx: 0.6, hitFlash: 0 });
+  }
+  dialogue = { speaker: 'Ripplestar', text: `ThunderClan is on our territory! Drive them out, ${catName()}! Fight for RiverClan!` };
+  dialogueTimer = 220;
+}
+
 // Growth system
 // stage: 0=kit, 1=apprentice, 2=warrior
 let stage = 0;
@@ -262,6 +295,13 @@ function startGame() {
   apprentice    = null;
   apprenticeOut = false;
   mentor        = null;
+  tcBattle      = false;
+  tcCats        = [];
+  playerHp      = PLAYER_MAX_HP;
+  healTimer     = 0;
+  swipeTimer    = 0;
+  battleWon     = false;
+  battleWonTimer= 0;
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -623,6 +663,81 @@ function update() {
   }
   if (fishCaughtTimer > 0) fishCaughtTimer--;
 
+  // ── Battle: trigger with B at camp border ──────────────────────────────────
+  if (keys['b'] && !tcBattle && !currentDen && !dialogue && stage >= 1) {
+    startBattle();
+    keys['b'] = false;
+  }
+
+  if (swipeTimer > 0) swipeTimer--;
+
+  if (tcBattle && !currentDen) {
+    // F key to swipe at nearest TC cat
+    if (keys['f'] && swipeTimer === 0 && !dialogue) {
+      swipeTimer = 14;
+      let hit = false;
+      for (const tc of tcCats) {
+        if (tc.hp > 0 && Math.abs(cat.x - tc.x) < 55) {
+          tc.hp--;
+          tc.hitFlash = 18;
+          tc.vx = cat.x < tc.x ? 2 : -2; // knockback
+          xp += 15;
+          hit = true;
+          if (tc.hp <= 0) {
+            dialogue = { speaker: tc.name, text: 'Argh! RiverClan is too strong! I retreat!' };
+            dialogueTimer = 160;
+          }
+          break;
+        }
+      }
+      if (!hit) {
+        dialogue = { speaker: catName(), text: 'Missed! Get closer!' };
+        dialogueTimer = 60;
+      }
+      keys['f'] = false;
+    }
+
+    // TC cats move toward player and deal damage when adjacent
+    for (const tc of tcCats) {
+      if (tc.hp <= 0) continue;
+      if (tc.hitFlash > 0) { tc.hitFlash--; tc.vx *= 0.85; }
+      else tc.vx = tc.x > cat.x ? -0.9 : 0.9;
+      tc.x += tc.vx;
+      tc.x = Math.max(30, Math.min(FOREST_END + 200, tc.x));
+      // attack player
+      if (Math.abs(cat.x - tc.x) < 40) {
+        if (Math.random() < 0.015) {
+          playerHp = Math.max(0, playerHp - 1);
+          if (playerHp === 0) {
+            tcBattle = false;
+            tcCats = [];
+            playerHp = 3;
+            dialogue = { speaker: 'Ripplestar', text: `${catName()}! Fall back! You fought bravely but you need to rest. ThunderClan will be back...` };
+            dialogueTimer = 300;
+          }
+        }
+      }
+    }
+
+    // Check if all TC cats defeated
+    if (tcCats.every(tc => tc.hp <= 0)) {
+      tcBattle = false;
+      battleWon = true;
+      battleWonTimer = 400;
+      xp += 80;
+      dialogue = { speaker: 'Ripplestar', text: `RiverClan! ${catName()} has driven ThunderClan from our territory! We are proud of you! RIVERCLAN!` };
+      dialogueTimer = 380;
+    }
+  }
+
+  // Heal slowly outside battle
+  if (!tcBattle && playerHp < PLAYER_MAX_HP) {
+    healTimer++;
+    if (healTimer >= 120) { healTimer = 0; playerHp = Math.min(PLAYER_MAX_HP, playerHp + 1); }
+  }
+
+  if (battleWonTimer > 0) battleWonTimer--;
+
   cameraX = cat.x - W / 3;
   if (cameraX < 0) cameraX = 0;
   if (cameraX > WORLD_WIDTH - W) cameraX = WORLD_WIDTH - W;
@@ -641,9 +756,11 @@ function draw() {
     drawNPCs();
     drawPrey();
     drawFishing();
+    drawTCCats();
     drawPlayer();
   }
   drawHUD();
+  if (battleWon && battleWonTimer > 300) drawVictory();
   if (dialogue) drawDialogue();
 }
 
@@ -1317,6 +1434,52 @@ function drawNPCs() {
   }
 }
 
+function drawTCCats() {
+  for (const tc of tcCats) {
+    if (tc.hp <= 0) continue;
+    const sx = tc.x - cameraX;
+    if (sx < -60 || sx > W + 60) continue;
+    // flash red when hit
+    ctx.save();
+    if (tc.hitFlash > 0) {
+      ctx.globalAlpha = 0.6 + Math.sin(tc.hitFlash * 0.8) * 0.4;
+    }
+    drawCat(sx, GROUND_Y, tc.vx, tc.hitFlash > 0 ? '#ff4040' : tc.color, tc.leg, 20);
+    ctx.restore();
+    // name + HP bar
+    ctx.fillStyle = '#ff6060';
+    ctx.font = 'bold 11px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(tc.name + ' (ThunderClan)', sx, GROUND_Y - 62);
+    const bw = 44, bh = 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(sx - bw/2, GROUND_Y - 56, bw, bh);
+    ctx.fillStyle = '#ff4040';
+    ctx.fillRect(sx - bw/2, GROUND_Y - 56, bw * (tc.hp / tc.maxHp), bh);
+    // F prompt when close
+    if (Math.abs(cat.x - tc.x) < 55) {
+      ctx.fillStyle = '#ffe080';
+      ctx.font = 'bold 12px Georgia';
+      ctx.fillText('[F] Fight!', sx, GROUND_Y - 70);
+    }
+  }
+}
+
+function drawVictory() {
+  ctx.fillStyle = 'rgba(0,40,80,0.7)';
+  ctx.fillRect(W/2 - 220, H/2 - 50, 440, 100);
+  ctx.strokeStyle = '#7ec8e3';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(W/2 - 220, H/2 - 50, 440, 100);
+  ctx.fillStyle = '#ffe080';
+  ctx.font = 'bold 22px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText('⚔ RIVERCLAN VICTORY! ⚔', W/2, H/2);
+  ctx.fillStyle = '#aadfc8';
+  ctx.font = '14px Georgia';
+  ctx.fillText('ThunderClan has been driven from our territory!', W/2, H/2 + 28);
+}
+
 function drawPlayer() {
   const sz = catSize();
   drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', sz, walkFrame);
@@ -1382,8 +1545,29 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '11px Georgia';
   ctx.textAlign = 'left';
-  const hint = cat.x < FOREST_END ? 'A/D move   W jump   F pounce' : 'A/D move   W jump   E enter den   T talk   F fish';
+  const battleHint = stage >= 1 && !tcBattle ? '   B start battle vs ThunderClan' : '';
+  const fightHint  = tcBattle ? '   F fight!' : '';
+  const hint = cat.x < FOREST_END
+    ? 'A/D move   W jump   F pounce' + fightHint
+    : 'A/D move   W jump   E enter den   T talk   F fish' + battleHint + fightHint;
   ctx.fillText(hint, 12, H - 12);
+
+  // Health bar (shown during battle or when injured)
+  if (tcBattle || playerHp < PLAYER_MAX_HP) {
+    const bx = W - 140, by = 14, bw = 120, bh = 12;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(bx, by, bw, bh);
+    const pct = playerHp / PLAYER_MAX_HP;
+    ctx.fillStyle = pct > 0.5 ? '#50e050' : pct > 0.25 ? '#e0e050' : '#e05050';
+    ctx.fillRect(bx, by, bw * pct, bh);
+    ctx.strokeStyle = '#aadfc8';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, bw, bh);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px Georgia';
+    ctx.textAlign = 'right';
+    ctx.fillText('❤ HP ' + playerHp + '/' + PLAYER_MAX_HP, bx - 4, by + 10);
+  }
 }
 
 function drawDialogue() {
