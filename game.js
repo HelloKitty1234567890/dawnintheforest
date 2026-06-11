@@ -197,51 +197,102 @@ function drawCamp() {
 }
 
 function drawDen(x, label, wallColor, roofColor, grand = false) {
-  const w = grand ? 110 : 90;
-  const h = grand ? 80 : 65;
+  const w = grand ? 120 : 96;
+  const h = grand ? 88 : 70;
   const denY = GROUND_Y - h;
+  const mid = x;
 
-  // Reed walls
+  // Back bramble tangle (dark)
+  ctx.fillStyle = '#1a2a0a';
+  ctx.beginPath();
+  ctx.moveTo(mid - w/2 - 8, GROUND_Y);
+  ctx.lineTo(mid - w/2 - 4, denY + 6);
+  ctx.bezierCurveTo(mid - w/3, denY - 10, mid + w/3, denY - 10, mid + w/2 + 4, denY + 6);
+  ctx.lineTo(mid + w/2 + 8, GROUND_Y);
+  ctx.closePath();
+  ctx.fill();
+
+  // Main reed/woven wall
   ctx.fillStyle = wallColor;
   ctx.beginPath();
-  ctx.moveTo(x - w/2, GROUND_Y);
-  ctx.lineTo(x - w/2, denY + 10);
-  ctx.quadraticCurveTo(x, denY - (grand ? 30 : 20), x + w/2, denY + 10);
-  ctx.lineTo(x + w/2, GROUND_Y);
+  ctx.moveTo(mid - w/2, GROUND_Y);
+  ctx.lineTo(mid - w/2 + 2, denY + 8);
+  ctx.bezierCurveTo(mid - w/3, denY - 8, mid + w/3, denY - 8, mid + w/2 - 2, denY + 8);
+  ctx.lineTo(mid + w/2, GROUND_Y);
   ctx.closePath();
   ctx.fill();
 
-  // Roof highlight
-  ctx.fillStyle = roofColor;
-  ctx.beginPath();
-  ctx.moveTo(x - w/2 + 8, GROUND_Y - 10);
-  ctx.lineTo(x - w/2 + 4, denY + 15);
-  ctx.quadraticCurveTo(x, denY - (grand ? 18 : 10), x + w/2 - 4, denY + 15);
-  ctx.lineTo(x + w/2 - 8, GROUND_Y - 10);
-  ctx.closePath();
-  ctx.fill();
-
-  // Reed stripes
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-  ctx.lineWidth = 2;
-  for (let i = -3; i <= 3; i++) {
+  // Woven reed texture — horizontal bands
+  ctx.strokeStyle = roofColor;
+  ctx.lineWidth = 2.5;
+  for (let i = 1; i <= 5; i++) {
+    const bandY = GROUND_Y - (h * i / 6);
+    const bandW = w * 0.5 * (1 - i/7);
     ctx.beginPath();
-    ctx.moveTo(x + i * (w/8), GROUND_Y);
-    ctx.lineTo(x + i * (w/10), denY + 14);
+    ctx.moveTo(mid - bandW - w*0.08, bandY);
+    ctx.bezierCurveTo(mid - bandW*0.3, bandY - 4, mid + bandW*0.3, bandY - 4, mid + bandW + w*0.08, bandY);
     ctx.stroke();
   }
 
-  // Entrance gap
-  ctx.fillStyle = '#0a1a0a';
+  // Vertical reed stalks
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1.5;
+  for (let i = -4; i <= 4; i++) {
+    const rx = mid + i * (w / 9);
+    ctx.beginPath();
+    ctx.moveTo(rx, GROUND_Y);
+    ctx.lineTo(rx + i*0.5, denY + 12);
+    ctx.stroke();
+  }
+
+  // Bramble thorns on top
+  ctx.strokeStyle = '#0a1a05';
+  ctx.lineWidth = 1.5;
+  for (let i = -3; i <= 3; i++) {
+    const tx = mid + i * (w/7);
+    const ty = denY - 2 + Math.abs(i) * 2;
+    ctx.beginPath();
+    ctx.moveTo(tx - 6, ty + 8);
+    ctx.lineTo(tx, ty);
+    ctx.lineTo(tx + 6, ty + 6);
+    ctx.stroke();
+    // thorn spikes
+    ctx.beginPath();
+    ctx.moveTo(tx - 2, ty + 4);
+    ctx.lineTo(tx - 7, ty + 1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tx + 2, ty + 3);
+    ctx.lineTo(tx + 7, ty + 1);
+    ctx.stroke();
+  }
+
+  // Dark entrance tunnel
+  ctx.fillStyle = '#050e05';
   ctx.beginPath();
-  ctx.ellipse(x, GROUND_Y - 12, 14, 16, 0, 0, Math.PI, Math.PI*2);
+  ctx.ellipse(mid, GROUND_Y - 10, 16, 20, 0, Math.PI, Math.PI * 2);
   ctx.fill();
 
+  // Entrance edge highlight
+  ctx.strokeStyle = '#2a4a1a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(mid, GROUND_Y - 10, 16, 20, 0, Math.PI, Math.PI * 2);
+  ctx.stroke();
+
+  // Moss patches at base
+  ctx.fillStyle = '#2a5a1a';
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.ellipse(mid + i * (w/5), GROUND_Y - 2, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Label
-  ctx.fillStyle = '#d4e8b0';
-  ctx.font = '11px Georgia';
+  ctx.fillStyle = '#c8dfa0';
+  ctx.font = 'italic 11px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText(label, x, denY - (grand ? 36 : 26));
+  ctx.fillText(label, mid, denY - (grand ? 22 : 16));
 }
 
 function roundRect(x, y, w, h) {
@@ -309,89 +360,144 @@ function drawDialogue() {
 function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22, walk = 0) {
   const c = color;
   const bx = x;
-  const by = groundY - s * 1.1;
+  const by = groundY - s * 1.05;
 
-  // tail
+  // tail — thin and whippy like a wild cat
   ctx.strokeStyle = c;
-  ctx.lineWidth = s * 0.25;
+  ctx.lineWidth = s * 0.18;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(bx + s * 0.7, by + s * 0.4);
-  ctx.quadraticCurveTo(bx + s * 1.6, by - s * 0.6, bx + s * 0.5, by - s * 1.5);
+  ctx.moveTo(bx + s * 0.75, by + s * 0.3);
+  ctx.bezierCurveTo(bx + s*1.8, by + s*0.1, bx + s*1.6, by - s*1.2, bx + s*0.9, by - s*1.6);
+  ctx.stroke();
+  // tail tip darker
+  ctx.strokeStyle = legColor;
+  ctx.lineWidth = s * 0.12;
+  ctx.beginPath();
+  ctx.moveTo(bx + s*1.2, by - s*1.2);
+  ctx.lineTo(bx + s*0.9, by - s*1.6);
   ctx.stroke();
 
-  // body
+  // body — lean and slightly angular
   ctx.fillStyle = c;
   ctx.beginPath();
-  ctx.ellipse(bx, by, s * 0.85, s * 0.75, 0, 0, Math.PI * 2);
+  ctx.moveTo(bx - s*0.9, by + s*0.55);
+  ctx.bezierCurveTo(bx - s*0.95, by - s*0.3, bx - s*0.3, by - s*0.75, bx, by - s*0.72);
+  ctx.bezierCurveTo(bx + s*0.3, by - s*0.75, bx + s*0.9, by - s*0.3, bx + s*0.88, by + s*0.55);
+  ctx.closePath();
   ctx.fill();
 
-  // head
-  const hx = bx, hy = by - s * 0.95, hr = s * 0.78;
+  // chest scruff
+  ctx.fillStyle = legColor;
   ctx.beginPath();
-  ctx.ellipse(hx, hy, hr, hr * 0.95, 0, 0, Math.PI * 2);
+  ctx.ellipse(bx, by + s*0.1, s*0.35, s*0.28, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // ears
+  // head — slightly angular, not perfectly round
+  const hx = bx, hy = by - s * 1.0, hr = s * 0.72;
+  ctx.fillStyle = c;
   ctx.beginPath();
-  ctx.moveTo(hx - hr*0.55, hy - hr*0.6); ctx.lineTo(hx - hr*0.72, hy - hr*1.35); ctx.lineTo(hx - hr*0.1, hy - hr*0.78);
+  ctx.moveTo(hx - hr*0.9, hy + hr*0.4);
+  ctx.bezierCurveTo(hx - hr*1.0, hy - hr*0.3, hx - hr*0.5, hy - hr*1.0, hx, hy - hr*0.95);
+  ctx.bezierCurveTo(hx + hr*0.5, hy - hr*1.0, hx + hr*1.0, hy - hr*0.3, hx + hr*0.9, hy + hr*0.4);
+  ctx.bezierCurveTo(hx + hr*0.5, hy + hr*0.75, hx - hr*0.5, hy + hr*0.75, hx - hr*0.9, hy + hr*0.4);
+  ctx.closePath();
+  ctx.fill();
+
+  // tall pointy wild ears
+  ctx.beginPath();
+  ctx.moveTo(hx - hr*0.6, hy - hr*0.55);
+  ctx.lineTo(hx - hr*0.85, hy - hr*1.65);
+  ctx.lineTo(hx - hr*0.05, hy - hr*0.82);
   ctx.closePath(); ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(hx + hr*0.1, hy - hr*0.78); ctx.lineTo(hx + hr*0.72, hy - hr*1.35); ctx.lineTo(hx + hr*0.55, hy - hr*0.6);
+  ctx.moveTo(hx + hr*0.05, hy - hr*0.82);
+  ctx.lineTo(hx + hr*0.85, hy - hr*1.65);
+  ctx.lineTo(hx + hr*0.6, hy - hr*0.55);
   ctx.closePath(); ctx.fill();
 
   // inner ear
-  ctx.fillStyle = '#e8a0b0';
+  ctx.fillStyle = '#c07080';
   ctx.beginPath();
-  ctx.moveTo(hx - hr*0.52, hy - hr*0.65); ctx.lineTo(hx - hr*0.62, hy - hr*1.15); ctx.lineTo(hx - hr*0.14, hy - hr*0.8);
+  ctx.moveTo(hx - hr*0.56, hy - hr*0.62);
+  ctx.lineTo(hx - hr*0.72, hy - hr*1.45);
+  ctx.lineTo(hx - hr*0.1, hy - hr*0.86);
   ctx.closePath(); ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(hx + hr*0.14, hy - hr*0.8); ctx.lineTo(hx + hr*0.62, hy - hr*1.15); ctx.lineTo(hx + hr*0.52, hy - hr*0.65);
+  ctx.moveTo(hx + hr*0.1, hy - hr*0.86);
+  ctx.lineTo(hx + hr*0.72, hy - hr*1.45);
+  ctx.lineTo(hx + hr*0.56, hy - hr*0.62);
   ctx.closePath(); ctx.fill();
 
-  // eyes
-  const eyeOff = hr * 0.32, ey = hy - hr * 0.08;
+  // almond-shaped eyes — more wild
+  const eyeOff = hr * 0.3, ey = hy - hr * 0.1;
   for (const ex of [hx - eyeOff, hx + eyeOff]) {
-    ctx.fillStyle = '#c8eef8';
-    ctx.beginPath(); ctx.ellipse(ex, ey, hr*0.26, hr*0.28, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#7ab8d8';
-    ctx.beginPath(); ctx.ellipse(ex, ey, hr*0.2, hr*0.22, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d4a820'; // amber/yellow wild cat eyes
+    ctx.beginPath();
+    ctx.ellipse(ex, ey, hr*0.22, hr*0.18, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#111';
-    ctx.beginPath(); ctx.ellipse(ex, ey, hr*0.11, hr*0.16, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(ex, ey, hr*0.08, hr*0.15, 0, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.ellipse(ex + hr*0.07, ey - hr*0.08, hr*0.06, hr*0.06, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(ex + hr*0.06, ey - hr*0.06, hr*0.05, hr*0.05, 0, 0, Math.PI*2); ctx.fill();
   }
 
-  // nose & mouth
-  const nx = hx, ny = hy + hr * 0.28;
-  ctx.fillStyle = '#e87090';
-  ctx.beginPath(); ctx.ellipse(nx, ny, hr*0.14, hr*0.1, 0, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#c05060'; ctx.lineWidth = Math.max(1, s*0.06); ctx.lineCap = 'round';
+  // nose
+  const nx = hx, ny = hy + hr * 0.22;
+  ctx.fillStyle = '#c06070';
   ctx.beginPath();
-  ctx.moveTo(nx - hr*0.22, ny + hr*0.12);
-  ctx.quadraticCurveTo(nx - hr*0.1, ny + hr*0.26, nx, ny + hr*0.16);
-  ctx.quadraticCurveTo(nx + hr*0.1, ny + hr*0.26, nx + hr*0.22, ny + hr*0.12);
+  ctx.moveTo(nx, ny - hr*0.1);
+  ctx.lineTo(nx - hr*0.14, ny + hr*0.1);
+  ctx.lineTo(nx + hr*0.14, ny + hr*0.1);
+  ctx.closePath(); ctx.fill();
+
+  // mouth — simple downward lines
+  ctx.strokeStyle = '#904050'; ctx.lineWidth = Math.max(1, s*0.05); ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(nx, ny + hr*0.1);
+  ctx.lineTo(nx - hr*0.18, ny + hr*0.3);
+  ctx.moveTo(nx, ny + hr*0.1);
+  ctx.lineTo(nx + hr*0.18, ny + hr*0.3);
   ctx.stroke();
 
-  // whiskers
-  ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 1;
+  // long wild whiskers
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
   for (const side of [-1, 1]) for (const row of [-1, 0, 1]) {
     ctx.beginPath();
-    ctx.moveTo(nx + side*hr*0.15, ny + row*hr*0.08);
-    ctx.lineTo(nx + side*hr*1.1,  ny + row*hr*0.2);
+    ctx.moveTo(nx + side*hr*0.12, ny + row*hr*0.06 - hr*0.05);
+    ctx.lineTo(nx + side*hr*1.4, ny + row*hr*0.28 - hr*0.05);
     ctx.stroke();
   }
 
-  // walking paws
-  const swing = Math.sin(walk * 0.3) * s * 0.18;
-  const leftY = groundY - s*0.1 + swing, rightY = groundY - s*0.1 - swing;
+  // fur tufts on cheeks
+  ctx.strokeStyle = c; ctx.lineWidth = 1.5;
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(hx + side*(hr*0.7 + i*2), hy + hr*0.1);
+      ctx.lineTo(hx + side*(hr*0.9 + i*3), hy + hr*0.1 - i*2);
+      ctx.stroke();
+    }
+  }
+
+  // walking paws — lean legs
+  const swing = Math.sin(walk * 0.28) * s * 0.2;
+  const leftY  = groundY - s*0.08 + swing;
+  const rightY = groundY - s*0.08 - swing;
+
   ctx.fillStyle = legColor;
-  ctx.beginPath(); ctx.ellipse(bx - s*0.38, leftY,  s*0.28, s*0.18, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(bx + s*0.38, rightY, s*0.28, s*0.18, 0, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1;
-  for (const [px, py] of [[bx - s*0.38, leftY], [bx + s*0.38, rightY]]) {
-    for (const toe of [-0.12, 0, 0.12]) {
-      ctx.beginPath(); ctx.moveTo(px + toe*s, py - s*0.08); ctx.lineTo(px + toe*s, py + s*0.08); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(bx - s*0.4, leftY,  s*0.22, s*0.14, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(bx + s*0.4, rightY, s*0.22, s*0.14, 0, 0, Math.PI*2); ctx.fill();
+
+  // claws
+  ctx.strokeStyle = 'rgba(200,200,180,0.7)'; ctx.lineWidth = 1;
+  for (const [px, py] of [[bx - s*0.4, leftY], [bx + s*0.4, rightY]]) {
+    for (const toe of [-0.18, -0.06, 0.06, 0.18]) {
+      ctx.beginPath();
+      ctx.moveTo(px + toe*s, py);
+      ctx.lineTo(px + toe*s + toe*s*0.4, py + s*0.14);
+      ctx.stroke();
     }
   }
 }
