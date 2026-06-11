@@ -49,15 +49,15 @@ const WARRIORS_X   = 2650;
 const MEDICINE_X   = 2950;
 const WORLD_WIDTH  = 3200;
 
-// NPC cats
+// NPC cats — positioned in camp
 const NPCS = [
-  { x: 500,  name: 'Ripplestar',  color: '#f0f0f0', legColor: '#e0e0e0', size: 22,
-    lines: ['Hello little one.', 'Stay close to camp, ' ] },
-  { x: 310,  name: 'Mosswhisker', color: '#b8926a', legColor: '#a07850', size: 20,
+  { x: LEADERS_X  - 100, name: 'Ripplestar',  color: '#f0f0f0', legColor: '#e0e0e0', size: 22,
+    lines: ['Hello little one.', 'Stay close to camp!'] },
+  { x: NURSERY_X  + 80,  name: 'Mosswhisker', color: '#b8926a', legColor: '#a07850', size: 20,
     lines: ['Welcome to the nursery!', 'You are safe here, little one.'] },
-  { x: 980,  name: 'Stoneclaw',   color: '#7a7a8a', legColor: '#5a5a6a', size: 22,
+  { x: WARRIORS_X + 80,  name: 'Stoneclaw',   color: '#7a7a8a', legColor: '#5a5a6a', size: 22,
     lines: ['Train hard and you will be a great warrior.'] },
-  { x: 1280, name: 'Fernleaf',    color: '#8ab870', legColor: '#6a9050', size: 20,
+  { x: MEDICINE_X + 80,  name: 'Fernleaf',    color: '#8ab870', legColor: '#6a9050', size: 20,
     lines: ['I am the medicine cat. Come to me if you are hurt.'] },
 ];
 
