@@ -44,11 +44,12 @@ const FOREST_START = 0;
 const FOREST_END   = 1800;  // forest to the left of camp
 const CAMP_START   = 1800;
 const NURSERY_X    = 1980;
-const LEADERS_X    = 2300;
-const WARRIORS_X   = 2650;
-const MEDICINE_X   = 2950;
-const WORLD_WIDTH  = 3200;
-const MOONPOOL_X   = 3100; // Moonpool — medicine cats speak with StarClan here
+const APPRENTICE_X = 2160;
+const LEADERS_X    = 2380;
+const WARRIORS_X   = 2720;
+const MEDICINE_X   = 3020;
+const WORLD_WIDTH  = 3350;
+const MOONPOOL_X   = 3240; // Moonpool — medicine cats speak with StarClan here
 
 // NPC cats — positioned in camp
 const NPCS = [
@@ -94,6 +95,14 @@ let cat, onGround, cameraX, dialogue, dialogueTimer, walkFrame;
 // currentDen: null = outside, 'nursery'/'leaders'/'warriors'/'medicine'
 let currentDen = null;
 const DENS = [
+  { id: 'apprentice', x: APPRENTICE_X, label: 'Apprentice Den',
+    bg: '#181a14', wallColor: '#282a1c',
+    desc: 'Sandy nests line the walls. It smells of fresh bracken and excitement.',
+    cats: [
+      { name: 'Minnowpaw',  color: '#7a9aaa', leg: '#5a7a8a', line: 'I have been practising my hunting crouch all morning!' },
+      { name: 'Brackenpaw', color: '#8a7040', leg: '#6a5020', line: 'My mentor took me on border patrol today. It was amazing!' },
+      { name: 'Rushpaw',    color: '#a0b870', leg: '#809050', line: 'I can\'t wait to get my warrior name. How long did it take you?' },
+    ]},
   { id: 'nursery',  x: NURSERY_X,  label: 'Nursery',
     bg: '#1a2a10', wallColor: '#2a3a18',
     desc: 'Soft moss and bracken line the floor. It smells like milk and warmth.',
@@ -217,7 +226,7 @@ function kitDisplayName(k) {
   return k.prefix + WARRIOR_SUFFIXES[k.prefix.length % WARRIOR_SUFFIXES.length];
 }
 function kitSize(k) { return k.stage === 0 ? 9 : k.stage === 1 ? 14 : 19; }
-function kitDen(k)  { return k.stage === 0 ? 'nursery' : k.stage === 1 ? 'warriors' : 'warriors'; }
+function kitDen(k)  { return k.stage === 0 ? 'nursery' : k.stage === 1 ? 'apprentice' : 'warriors'; }
 
 function isNight() { return dayTime < 0.22 || dayTime > 0.80; }
 function isDawn()  { return dayTime >= 0.22 && dayTime < 0.35; }
@@ -232,6 +241,19 @@ let healTimer = 0;          // ticks between heals outside battle
 let swipeTimer = 0;         // brief swipe animation
 let battleWon  = false;     // show victory screen briefly
 let battleWonTimer = 0;
+
+// ─── Sleep ───────────────────────────────────────────────────────────────────
+let sleeping = false;
+let sleepTimer = 0;
+
+const DREAM_MESSAGES = [
+  'You dream of rushing rivers and leaping fish...',
+  'You dream of starlight on the water and voices from above...',
+  'You dream of running through the forest, fast as the wind...',
+  'You dream of your kits playing in warm sunshine...',
+  'You dream of a great battle won, your Clan cheering your name...',
+  'A dream of moonlight... StarClan watches over you as you sleep.',
+];
 
 // ─── Moonpool / StarClan ──────────────────────────────────────────────────────
 let moonpoolVisited = false; // cooldown so you can't spam
@@ -354,6 +376,8 @@ function startGame() {
   battleWonTimer  = 0;
   moonpoolVisited = false;
   moonpoolTimer   = 0;
+  sleeping        = false;
+  sleepTimer      = 0;
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -539,6 +563,24 @@ function update() {
         dialogue = { speaker: catName(), text: `There are no kits in the nursery yet to take as an apprentice.` };
         dialogueTimer = 180;
         keys['p'] = false;
+      }
+    }
+
+    // S to sleep — skip time forward, heal, show dream
+    if (keys['s'] && !sleeping && !dialogue && !namingKit) {
+      sleeping = true;
+      sleepTimer = 90;
+      const dream = DREAM_MESSAGES[Math.floor(Math.random() * DREAM_MESSAGES.length)];
+      dialogue = { speaker: 'Zzz...', text: dream };
+      dialogueTimer = 88;
+      keys['s'] = false;
+    }
+    if (sleeping) {
+      sleepTimer--;
+      dayTime = (dayTime + 0.004) % 1; // fast-forward time while sleeping
+      if (sleepTimer <= 0) {
+        sleeping = false;
+        playerHp = Math.min(PLAYER_MAX_HP, playerHp + 3); // heal while sleeping
       }
     }
 
@@ -1043,11 +1085,20 @@ function drawDenInterior() {
   });
 
   // Player cat
-  drawCat(cat.x, H - 80, cat.vx, '#4a4a5a', '#6a6a7a', catSize(), walkFrame);
+  drawCat(cat.x, H - 80, sleeping ? 0 : cat.vx, '#4a4a5a', '#6a6a7a', catSize(), sleeping ? 0 : walkFrame);
   ctx.fillStyle = '#aadfc8';
   ctx.font = 'bold 12px Georgia';
   ctx.textAlign = 'center';
   ctx.fillText(catName(), cat.x, H - 80 - catSize() * 2.6);
+  if (sleeping) {
+    // Zzz bubbles floating up
+    const t = Date.now() / 400;
+    ['z','z','Z'].forEach((z, i) => {
+      ctx.fillStyle = `rgba(200,220,255,${0.4 + Math.sin(t + i) * 0.3})`;
+      ctx.font = `${10 + i * 4}px Georgia`;
+      ctx.fillText(z, cat.x + 18 + i * 8, H - 80 - catSize() * 3 - i * 12 + Math.sin(t + i) * 4);
+    });
+  }
 
   // Kits/apprentices/warriors in their correct den
   const kitsHere = kits.filter(k => kitDen(k) === currentDen);
@@ -1106,7 +1157,7 @@ function drawDenInterior() {
   const kitHint  = stage === 2 && mate && kits.length < 3 && currentDen === 'nursery' ? '   K have a kit' : '';
   const appHint  = stage === 2 && !apprentice && currentDen === 'nursery' && kits.some(k => k.stage === 0) ? '   P pick apprentice' : '';
   const trainHint = stage === 2 && apprentice && currentDen === 'warriors' ? ('   P ' + (apprenticeOut ? 'send back' : 'take on patrol')) : '';
-  ctx.fillText('A/D move   T talk   Q leave' + mateHint + kitHint + appHint + trainHint, W/2, H - 10);
+  ctx.fillText('A/D move   T talk   S sleep   Q leave' + mateHint + kitHint + appHint + trainHint, W/2, H - 10);
 }
 
 function drawFishing() {
