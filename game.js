@@ -145,8 +145,8 @@ function draw() {
   // Trees in background
   drawTrees(cameraX);
 
-  // Ripplestar
-  drawCat(ripplestar.x - cameraX, ripplestar.y, 0, '#f0f0f0', '#ffffff');
+  // Ripplestar — full grown leader, drawn at scale 1.0
+  drawCat(ripplestar.x - cameraX, ripplestar.y, 0, '#f0f0f0', '#ffffff', 1.0);
   ctx.fillStyle = '#f0f0ee';
   ctx.font = '12px Georgia';
   ctx.textAlign = 'center';
@@ -162,8 +162,8 @@ function draw() {
     ctx.fillText('Press E to talk', ripplestar.x - cameraX + 14, ripplestar.y - 17);
   }
 
-  // Cat
-  drawCat(cat.x - cameraX, cat.y, cat.vx);
+  // Player cat — small kit, drawn at scale 0.6
+  drawCat(cat.x - cameraX, cat.y, cat.vx, '#4a4a5a', '#6a6a7a', 0.6);
 
   // Name tag — always visible above your cat
   ctx.fillStyle = '#aadfc8';
@@ -216,7 +216,11 @@ function drawTrees(camX) {
   }
 }
 
-function drawCat(x, y, vx, color = '#4a4a5a', legColor = '#6a6a7a') {
+function drawCat(x, y, vx, color = '#4a4a5a', legColor = '#6a6a7a', scale = 1.0) {
+  ctx.save();
+  ctx.translate(x, y + 44);
+  ctx.scale(scale, scale);
+  ctx.translate(-x, -(y + 44));
   const c = color;
   const facingLeft = vx < 0;
   const dir = facingLeft ? -1 : 1;
@@ -331,4 +335,6 @@ function drawCat(x, y, vx, color = '#4a4a5a', legColor = '#6a6a7a') {
   ctx.beginPath(); ctx.ellipse(bx - 2,  by + 22, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(bx + 6,  by + 22, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(bx + 14, by + 22, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
 }
