@@ -49,13 +49,13 @@ let showName;
 let dialogue;
 let dialogueTimer;
 
-const ripplestar = { x: 320, y: GROUND_Y - 24, w: 28, h: 24 };
+const ripplestar = { x: 320, y: GROUND_Y - 38, w: 40, h: 38 };
 
 function startGame() {
   canvas.width = W;
   canvas.height = H;
 
-  cat = { x: 120, y: GROUND_Y - 24, w: 28, h: 24, vx: 0, vy: 0 };
+  cat = { x: 120, y: GROUND_Y - 38, w: 40, h: 38, vx: 0, vy: 0 };
   onGround = false;
   cameraX = 0;
   showName = true;
@@ -90,7 +90,7 @@ function update() {
 
   // ground collision
   if (cat.y + cat.h >= GROUND_Y) {
-    cat.y = GROUND_Y - cat.h;
+    cat.y = GROUND_Y - cat.h - 2;
     cat.vy = 0;
     onGround = true;
   }
@@ -223,47 +223,117 @@ function drawTrees(camX) {
 function drawCat(x, y, vx, color = '#4a4a5a', legColor = '#6a6a7a') {
   const c = color;
   const lighter = legColor;
-  const nose = '#e8a0a0';
+  const facingLeft = vx < 0;
 
-  // body
-  ctx.fillStyle = c;
-  ctx.fillRect(x + 4, y + 8, 20, 14);
-
-  // head
-  ctx.fillRect(x + 10, y, 16, 14);
-
-  // ears
-  ctx.fillStyle = c;
-  ctx.beginPath();
-  ctx.moveTo(x + 11, y); ctx.lineTo(x + 8,  y - 7); ctx.lineTo(x + 15, y); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(x + 20, y); ctx.lineTo(x + 24, y - 7); ctx.lineTo(x + 26, y); ctx.fill();
-
-  // eye
-  ctx.fillStyle = '#90d0f0';
-  const eyeX = vx < 0 ? x + 12 : x + 22;
-  ctx.fillRect(eyeX, y + 4, 4, 3);
-
-  // nose
-  ctx.fillStyle = nose;
-  ctx.fillRect(eyeX + 1, y + 9, 2, 2);
-
-  // tail
+  // tail (draw behind body)
   ctx.strokeStyle = c;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  if (vx >= 0) {
-    ctx.moveTo(x + 4, y + 18);
-    ctx.quadraticCurveTo(x - 10, y + 10, x - 4, y + 2);
+  if (!facingLeft) {
+    ctx.moveTo(x + 6, y + 28);
+    ctx.quadraticCurveTo(x - 14, y + 20, x - 8, y + 4);
   } else {
-    ctx.moveTo(x + 24, y + 18);
-    ctx.quadraticCurveTo(x + 38, y + 10, x + 32, y + 2);
+    ctx.moveTo(x + 34, y + 28);
+    ctx.quadraticCurveTo(x + 54, y + 20, x + 48, y + 4);
   }
   ctx.stroke();
 
+  // body — rounder oval shape
+  ctx.fillStyle = c;
+  ctx.beginPath();
+  ctx.ellipse(x + 20, y + 22, 16, 11, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // head
+  ctx.beginPath();
+  ctx.ellipse(x + (facingLeft ? 12 : 28), y + 10, 12, 11, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // pointy ears
+  const hx = facingLeft ? 12 : 28;
+  ctx.beginPath();
+  ctx.moveTo(x + hx - 8, y + 3);
+  ctx.lineTo(x + hx - 12, y - 10);
+  ctx.lineTo(x + hx - 2, y + 1);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + hx + 4, y + 1);
+  ctx.lineTo(x + hx + 10, y - 10);
+  ctx.lineTo(x + hx + 8, y + 3);
+  ctx.fill();
+
+  // inner ear
+  ctx.fillStyle = '#e8a0b0';
+  ctx.beginPath();
+  ctx.moveTo(x + hx - 7, y + 2);
+  ctx.lineTo(x + hx - 10, y - 7);
+  ctx.lineTo(x + hx - 2, y + 1);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + hx + 4, y + 1);
+  ctx.lineTo(x + hx + 8, y - 7);
+  ctx.lineTo(x + hx + 7, y + 2);
+  ctx.fill();
+
+  // eyes
+  ctx.fillStyle = '#90d0f0';
+  ctx.beginPath();
+  ctx.ellipse(x + hx - 4, y + 9, 3, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x + hx + 4, y + 9, 3, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // pupils
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(x + hx - 4, y + 9, 1.5, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(x + hx + 4, y + 9, 1.5, 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // nose
+  ctx.fillStyle = '#e87090';
+  ctx.beginPath();
+  ctx.moveTo(x + hx,     y + 14);
+  ctx.lineTo(x + hx - 3, y + 17);
+  ctx.lineTo(x + hx + 3, y + 17);
+  ctx.fill();
+
+  // mouth
+  ctx.strokeStyle = '#c05060';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x + hx - 3, y + 17);
+  ctx.quadraticCurveTo(x + hx - 5, y + 20, x + hx - 7, y + 19);
+  ctx.moveTo(x + hx + 3, y + 17);
+  ctx.quadraticCurveTo(x + hx + 5, y + 20, x + hx + 7, y + 19);
+  ctx.stroke();
+
+  // whiskers
+  ctx.strokeStyle = color === '#f0f0f0' || color === '#ffffff' ? 'rgba(180,180,180,0.8)' : 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1;
+  for (const side of [-1, 1]) {
+    for (const angle of [-0.2, 0, 0.2]) {
+      ctx.beginPath();
+      ctx.moveTo(x + hx + side * 3, y + 16);
+      ctx.lineTo(x + hx + side * 18, y + 16 + angle * 20);
+      ctx.stroke();
+    }
+  }
+
   // legs
   ctx.fillStyle = lighter;
-  ctx.fillRect(x + 6,  y + 20, 5, 6);
-  ctx.fillRect(x + 13, y + 20, 5, 6);
-  ctx.fillRect(x + 18, y + 20, 5, 6);
+  ctx.beginPath(); ctx.ellipse(x + 10, y + 32, 4, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 18, y + 32, 4, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 26, y + 32, 4, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 33, y + 32, 4, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+  // paws
+  ctx.fillStyle = c;
+  ctx.beginPath(); ctx.ellipse(x + 10, y + 36, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 18, y + 36, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 26, y + 36, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 33, y + 36, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
 }
