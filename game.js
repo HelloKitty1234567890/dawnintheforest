@@ -48,6 +48,7 @@ const LEADERS_X    = 2300;
 const WARRIORS_X   = 2650;
 const MEDICINE_X   = 2950;
 const WORLD_WIDTH  = 3200;
+const MOONPOOL_X   = 3100; // Moonpool — medicine cats speak with StarClan here
 
 // NPC cats — positioned in camp
 const NPCS = [
@@ -232,6 +233,21 @@ let swipeTimer = 0;         // brief swipe animation
 let battleWon  = false;     // show victory screen briefly
 let battleWonTimer = 0;
 
+// ─── Moonpool / StarClan ──────────────────────────────────────────────────────
+let moonpoolVisited = false; // cooldown so you can't spam
+let moonpoolTimer   = 0;     // glowing ripple animation tick
+
+const STARCLAN_MESSAGES = [
+  { speaker: 'Bluestar',    text: 'Well done, young medicine cat. RiverClan is strong because of cats like you. Trust in the river — it always finds its way.' },
+  { speaker: 'Yellowfang',  text: 'Ha! So you came to bother the dead, did you? Good. Listen closely: a storm is coming. Prepare your herbs.' },
+  { speaker: 'Spottedleaf', text: 'The stars are watching over you. When you feel lost, look at the reflection in the water — StarClan is always near.' },
+  { speaker: 'Firestar',    text: 'Courage, young one. A medicine cat\'s strength is not in their claws but in their heart. You have a kind heart.' },
+  { speaker: 'Silverstream', text: 'The river carries whispers from the old ones. Be patient. The answers you seek will come like the tide.' },
+  { speaker: 'Cinderpelt',  text: 'I know what it is to walk this path. It is hard and it is beautiful. You are never alone — we are always here.' },
+  { speaker: 'Bluestar',    text: 'I sense great things in your future. RiverClan chose well when you answered the call of the medicine cat.' },
+  { speaker: 'Oakheart',    text: 'The river flows on forever, as does RiverClan. Keep your clanmates healthy and the Clan will thrive for generations.' },
+];
+
 const TC_CATS_DATA = [
   { name: 'Tigerclaw',  color: '#8a6030', leg: '#6a4010' },
   { name: 'Darkstripe', color: '#303030', leg: '#202020' },
@@ -311,7 +327,9 @@ function startGame() {
   healTimer     = 0;
   swipeTimer    = 0;
   battleWon     = false;
-  battleWonTimer= 0;
+  battleWonTimer  = 0;
+  moonpoolVisited = false;
+  moonpoolTimer   = 0;
   currentDen    = null;
   // Spawn forest prey
   forestPrey = [];
@@ -769,6 +787,24 @@ function update() {
 
   if (battleWonTimer > 0) battleWonTimer--;
 
+  moonpoolTimer++;
+  if (moonpoolVisited) {
+    moonpoolTimer++;
+    if (moonpoolTimer > 600) { moonpoolVisited = false; moonpoolTimer = 0; }
+  }
+
+  // Moonpool — medicine cats only, at night
+  if (keys['t'] && catPath === 'medicine' && stage >= 1 && !currentDen && !dialogue
+      && Math.abs(cat.x - MOONPOOL_X) < 55 && isNight() && !moonpoolVisited) {
+    const msg = STARCLAN_MESSAGES[Math.floor(Math.random() * STARCLAN_MESSAGES.length)];
+    dialogue = { speaker: '✨ ' + msg.speaker + ' (StarClan)', text: msg.text };
+    dialogueTimer = 380;
+    moonpoolVisited = true;
+    moonpoolTimer = 0;
+    xp += 40;
+    keys['t'] = false;
+  }
+
   cameraX = cat.x - W / 3;
   if (cameraX < 0) cameraX = 0;
   if (cameraX > WORLD_WIDTH - W) cameraX = WORLD_WIDTH - W;
@@ -784,6 +820,7 @@ function draw() {
     drawBackground();
     if (cat.x < FOREST_END) drawForestDetails();
     drawCamp();
+    drawMoonpool();
     drawNPCs();
     drawPrey();
     drawFishing();
@@ -1415,6 +1452,66 @@ function roundRect(x, y, w, h) {
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.fill();
+}
+
+function drawMoonpool() {
+  const mx = MOONPOOL_X - cameraX;
+  if (mx < -80 || mx > W + 80) return;
+
+  // Moonpool — glowing circular pool
+  const pulse = 0.7 + Math.sin(moonpoolTimer * 0.04) * 0.3;
+  const night = isNight();
+
+  // Pool water
+  const grad = ctx.createRadialGradient(mx, GROUND_Y - 4, 4, mx, GROUND_Y - 4, 38);
+  grad.addColorStop(0, night ? `rgba(180,220,255,${0.9 * pulse})` : 'rgba(100,160,220,0.6)');
+  grad.addColorStop(1, night ? `rgba(60,100,180,${0.5 * pulse})` : 'rgba(40,80,140,0.3)');
+  ctx.beginPath();
+  ctx.ellipse(mx, GROUND_Y - 4, 38, 14, 0, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Starlight sparkles at night
+  if (night) {
+    for (let i = 0; i < 6; i++) {
+      const angle = (moonpoolTimer * 0.02 + i * 1.05) % (Math.PI * 2);
+      const sx = mx + Math.cos(angle) * 28;
+      const sy = GROUND_Y - 4 + Math.sin(angle) * 10;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,220,${0.8 * pulse})`;
+      ctx.fill();
+    }
+    // glow ring
+    ctx.beginPath();
+    ctx.ellipse(mx, GROUND_Y - 4, 42, 16, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(180,220,255,${0.4 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Label
+  ctx.textAlign = 'center';
+  ctx.fillStyle = night ? `rgba(200,230,255,${pulse})` : 'rgba(150,180,220,0.7)';
+  ctx.font = 'italic 11px Georgia';
+  ctx.fillText('Moonpool', mx, GROUND_Y - 22);
+
+  // Prompt for medicine cats at night
+  if (catPath === 'medicine' && stage >= 1 && Math.abs(cat.x - MOONPOOL_X) < 55) {
+    if (night && !moonpoolVisited) {
+      ctx.fillStyle = '#c8e0ff';
+      ctx.font = 'bold 12px Georgia';
+      ctx.fillText('[T] Speak with StarClan', mx, GROUND_Y - 36);
+    } else if (!night) {
+      ctx.fillStyle = 'rgba(200,200,200,0.6)';
+      ctx.font = '11px Georgia';
+      ctx.fillText('Return at night to speak with StarClan', mx, GROUND_Y - 36);
+    } else if (moonpoolVisited) {
+      ctx.fillStyle = 'rgba(200,200,200,0.6)';
+      ctx.font = '11px Georgia';
+      ctx.fillText('StarClan sleeps... come back later', mx, GROUND_Y - 36);
+    }
+  }
 }
 
 function drawNPCs() {
