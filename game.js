@@ -664,7 +664,7 @@ function update() {
   if (fishCaughtTimer > 0) fishCaughtTimer--;
 
   // ── Battle: trigger with B at camp border ──────────────────────────────────
-  if (keys['b'] && !tcBattle && !currentDen && !dialogue && stage >= 1) {
+  if (keys['b'] && !tcBattle && !currentDen && !dialogue && stage === 2) {
     startBattle();
     keys['b'] = false;
   }
@@ -1545,7 +1545,7 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '11px Georgia';
   ctx.textAlign = 'left';
-  const battleHint = stage >= 1 && !tcBattle ? '   B start battle vs ThunderClan' : '';
+  const battleHint = stage === 2 && !tcBattle ? '   B start battle vs ThunderClan' : '';
   const fightHint  = tcBattle ? '   F fight!' : '';
   const hint = cat.x < FOREST_END
     ? 'A/D move   W jump   F pounce' + fightHint
