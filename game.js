@@ -291,6 +291,21 @@ let pathChoice = 0; // 0=warrior, 1=medicine (highlighted)
 const MED_SUFFIXES = ['leaf','petal','pool','frost','feather','fern','whisker','herb'];
 
 let leaderLives = 9;
+let readyForNineLives = false; // deputy earned enough XP — needs to visit Moonpool
+let nineLivesCeremony = false; // ceremony in progress at Moonpool
+let livesReceived = 0;         // how many lives given so far
+
+const NINE_LIVES_GIVERS = [
+  { name: 'Bluestar',     life: 'courage',      text: 'I give you a life for courage, to face danger without flinching.' },
+  { name: 'Firestar',     life: 'loyalty',      text: 'I give you a life for loyalty, to always stand by your Clan.' },
+  { name: 'Silverstream', life: 'love',         text: 'I give you a life for love, to cherish those who depend on you.' },
+  { name: 'Yellowfang',   life: 'compassion',   text: 'I give you a life for compassion. Even grumpy old medicine cats need it.' },
+  { name: 'Spottedleaf',  life: 'wisdom',       text: 'I give you a life for wisdom. Listen to your heart as well as your head.' },
+  { name: 'Oakheart',     life: 'strength',     text: 'I give you a life for strength, to protect those who cannot protect themselves.' },
+  { name: 'Cinderpelt',   life: 'endurance',    text: 'I give you a life for endurance. You will face hard times — keep going.' },
+  { name: 'Whitestorm',   life: 'justice',      text: 'I give you a life for justice. Lead with fairness and RiverClan will thrive.' },
+  { name: 'Bluestar',     life: 'hope',         text: 'And your ninth life — for hope. As long as you have hope, RiverClan can never truly fall.' },
+];
 
 function catSize() { return stage === 0 ? 12 : stage === 1 ? 17 : stage >= 3 ? 24 : 22; }
 
@@ -326,7 +341,10 @@ function startGame() {
   catPath       = 'warrior';
   choosingPath  = false;
   pathChoice    = 0;
-  leaderLives   = 9;
+  leaderLives         = 9;
+  readyForNineLives   = false;
+  nineLivesCeremony   = false;
+  livesReceived       = 0;
   tcBattle      = false;
   tcCats        = [];
   playerHp      = PLAYER_MAX_HP;
@@ -590,14 +608,11 @@ function update() {
     dialogue = { speaker: 'Ripplestar', text: ceremonyText };
     dialogueTimer = 420;
   }
-  if (stage === 3 && xp >= XP_TO_LEADER) {
-    stage = 4;
+  if (stage === 3 && xp >= XP_TO_LEADER && !readyForNineLives) {
+    readyForNineLives = true;
     xp = XP_TO_LEADER;
-    leaderLives = 9;
-    playerHp = PLAYER_MAX_HP;
-    ceremonyText = `I give you a life for courage. I give you a life for loyalty. I give you a life for love. Nine lives, ${catName()}! Lead RiverClan with wisdom and strength! RIVERCLAN!`;
-    dialogue = { speaker: 'StarClan', text: ceremonyText };
-    dialogueTimer = 500;
+    dialogue = { speaker: 'Ripplestar', text: `${catName()}, RiverClan is ready for a new leader. Go to the Moonpool at night — StarClan is waiting to give you your nine lives!` };
+    dialogueTimer = 420;
   }
 
   dayTime = (dayTime + DAY_SPEED) % 1;
@@ -828,16 +843,43 @@ function update() {
     if (moonpoolTimer > 600) { moonpoolVisited = false; moonpoolTimer = 0; }
   }
 
-  // Moonpool — medicine cats only, at night
-  if (keys['t'] && catPath === 'medicine' && stage >= 1 && !currentDen && !dialogue
-      && Math.abs(cat.x - MOONPOOL_X) < 55 && isNight() && !moonpoolVisited) {
-    const msg = STARCLAN_MESSAGES[Math.floor(Math.random() * STARCLAN_MESSAGES.length)];
-    dialogue = { speaker: '✨ ' + msg.speaker + ' (StarClan)', text: msg.text };
-    dialogueTimer = 380;
-    moonpoolVisited = true;
-    moonpoolTimer = 0;
-    xp += 40;
-    keys['t'] = false;
+  // Moonpool interactions at night
+  if (keys['t'] && !currentDen && !dialogue && Math.abs(cat.x - MOONPOOL_X) < 55 && isNight()) {
+    // Nine lives ceremony for deputy who's ready
+    if (readyForNineLives && !nineLivesCeremony) {
+      nineLivesCeremony = true;
+      livesReceived = 0;
+      const giver = NINE_LIVES_GIVERS[0];
+      dialogue = { speaker: '✨ ' + giver.name + ' (StarClan)', text: giver.text };
+      dialogueTimer = 360;
+      livesReceived = 1;
+      keys['t'] = false;
+    } else if (nineLivesCeremony && livesReceived < 9) {
+      const giver = NINE_LIVES_GIVERS[livesReceived];
+      dialogue = { speaker: '✨ ' + giver.name + ' (StarClan)', text: giver.text };
+      dialogueTimer = 360;
+      livesReceived++;
+      keys['t'] = false;
+    } else if (nineLivesCeremony && livesReceived >= 9) {
+      // All nine lives received — become leader!
+      nineLivesCeremony = false;
+      readyForNineLives = false;
+      stage = 4;
+      leaderLives = 9;
+      playerHp = PLAYER_MAX_HP;
+      dialogue = { speaker: '✨ StarClan', text: `You have your nine lives, ${catName()}! Lead RiverClan with all the courage, wisdom and love we have given you. RIVERCLAN!` };
+      dialogueTimer = 500;
+      keys['t'] = false;
+    } else if (catPath === 'medicine' && stage >= 1 && !moonpoolVisited) {
+      // Medicine cat StarClan message
+      const msg = STARCLAN_MESSAGES[Math.floor(Math.random() * STARCLAN_MESSAGES.length)];
+      dialogue = { speaker: '✨ ' + msg.speaker + ' (StarClan)', text: msg.text };
+      dialogueTimer = 380;
+      moonpoolVisited = true;
+      moonpoolTimer = 0;
+      xp += 40;
+      keys['t'] = false;
+    }
   }
 
   cameraX = cat.x - W / 3;
@@ -1531,17 +1573,37 @@ function drawMoonpool() {
   ctx.font = 'italic 11px Georgia';
   ctx.fillText('Moonpool', mx, GROUND_Y - 22);
 
-  // Prompt for medicine cats at night
-  if (catPath === 'medicine' && stage >= 1 && Math.abs(cat.x - MOONPOOL_X) < 55) {
-    if (night && !moonpoolVisited) {
+  // Prompt when near Moonpool
+  if (Math.abs(cat.x - MOONPOOL_X) < 55) {
+    ctx.textAlign = 'center';
+    if ((readyForNineLives || nineLivesCeremony) && night) {
+      ctx.fillStyle = '#ffe080';
+      ctx.font = 'bold 12px Georgia';
+      const livesLeft = nineLivesCeremony ? 9 - livesReceived : 9;
+      ctx.fillText(nineLivesCeremony ? `[T] Receive life ${livesReceived + 1} of 9` : '[T] Receive your nine lives!', mx, GROUND_Y - 36);
+      if (nineLivesCeremony) {
+        // show received pips
+        for (let i = 0; i < 9; i++) {
+          ctx.beginPath();
+          ctx.arc(mx - 56 + i * 14, GROUND_Y - 50, 4, 0, Math.PI * 2);
+          ctx.fillStyle = i < livesReceived ? '#ffe080' : '#333';
+          ctx.fill();
+          ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1; ctx.stroke();
+        }
+      }
+    } else if ((readyForNineLives || nineLivesCeremony) && !night) {
+      ctx.fillStyle = '#ffe080';
+      ctx.font = '11px Georgia';
+      ctx.fillText('Come back at night for your nine lives!', mx, GROUND_Y - 36);
+    } else if (catPath === 'medicine' && stage >= 1 && night && !moonpoolVisited) {
       ctx.fillStyle = '#c8e0ff';
       ctx.font = 'bold 12px Georgia';
       ctx.fillText('[T] Speak with StarClan', mx, GROUND_Y - 36);
-    } else if (!night) {
+    } else if (catPath === 'medicine' && stage >= 1 && !night) {
       ctx.fillStyle = 'rgba(200,200,200,0.6)';
       ctx.font = '11px Georgia';
       ctx.fillText('Return at night to speak with StarClan', mx, GROUND_Y - 36);
-    } else if (moonpoolVisited) {
+    } else if (catPath === 'medicine' && moonpoolVisited) {
       ctx.fillStyle = 'rgba(200,200,200,0.6)';
       ctx.font = '11px Georgia';
       ctx.fillText('StarClan sleeps... come back later', mx, GROUND_Y - 36);
