@@ -266,11 +266,18 @@ let ceremonyTimer = 0;
 let ceremonyText  = '';
 let xpZones = []; // tracks which zones have been visited for xp
 
+let catPath = 'warrior'; // 'warrior' or 'medicine'
+let choosingPath = false; // show path choice screen
+let pathChoice = 0; // 0=warrior, 1=medicine (highlighted)
+
+const MED_SUFFIXES = ['leaf','petal','pool','frost','feather','fern','whisker','herb'];
+
 function catSize() { return stage === 0 ? 12 : stage === 1 ? 17 : 22; }
 
 function catName() {
   if (stage === 0) return prefix + 'kit';
   if (stage === 1) return prefix + 'paw';
+  if (catPath === 'medicine') return prefix + MED_SUFFIXES[prefix.length % MED_SUFFIXES.length];
   return prefix + WARRIOR_SUFFIXES[prefix.length % WARRIOR_SUFFIXES.length];
 }
 
@@ -295,6 +302,9 @@ function startGame() {
   apprentice    = null;
   apprenticeOut = false;
   mentor        = null;
+  catPath       = 'warrior';
+  choosingPath  = false;
+  pathChoice    = 0;
   tcBattle      = false;
   tcCats        = [];
   playerHp      = PLAYER_MAX_HP;
@@ -336,7 +346,29 @@ function startGame() {
 
 function loop() { update(); draw(); requestAnimationFrame(loop); }
 
+function confirmPath() {
+  catPath = pathChoice === 0 ? 'warrior' : 'medicine';
+  choosingPath = false;
+  if (catPath === 'warrior') {
+    const warriorCats = DENS.find(d => d.id === 'warriors').cats;
+    mentor = warriorCats[Math.floor(Math.random() * warriorCats.length)];
+    dialogue = { speaker: 'Ripplestar', text: `From this day on you shall be known as ${catName()}! ${mentor.name} — you are ready for an apprentice. Train ${catName()} well!` };
+  } else {
+    mentor = DENS.find(d => d.id === 'medicine').cats[0]; // Fernleaf
+    dialogue = { speaker: 'Ripplestar', text: `From this day on you shall be known as ${catName()}! Fernleaf — ${catName()} will learn the ways of a medicine cat. Teach them wisely!` };
+  }
+  dialogueTimer = 400;
+}
+
 function update() {
+  // Path choice screen blocks all other input
+  if (choosingPath) {
+    if (keys['a'] || keys['arrowleft'])  { pathChoice = 0; keys['a'] = keys['arrowleft'] = false; }
+    if (keys['d'] || keys['arrowright']) { pathChoice = 1; keys['d'] = keys['arrowright'] = false; }
+    if (keys['enter'] || keys[' '])      { confirmPath(); keys['enter'] = keys[' '] = false; }
+    return;
+  }
+
   if (keys['a']) cat.vx = -SPEED;
   else if (keys['d']) cat.vx = SPEED;
   else cat.vx = 0;
@@ -400,8 +432,8 @@ function update() {
       }
     }
 
-    // M to ask a cat to be your mate (warrior only, warriors den)
-    if (keys['m'] && stage === 2 && den.id === 'warriors' && !mate && !dialogue) {
+    // M to ask a cat to be your mate (warrior path only, warriors den)
+    if (keys['m'] && stage === 2 && catPath === 'warrior' && den.id === 'warriors' && !mate && !dialogue) {
       const denCatXs = den.cats.map((_, i) => denCatX(den, i));
       let nearest = 0, nearDist = 9999;
       denCatXs.forEach((cx, i) => {
@@ -511,19 +543,18 @@ function update() {
   if (stage === 0 && xp >= XP_TO_APPRENTICE) {
     stage = 1;
     xp = XP_TO_APPRENTICE;
-    const warriorCats = DENS.find(d => d.id === 'warriors').cats;
-    mentor = warriorCats[Math.floor(Math.random() * warriorCats.length)];
-    ceremonyText = `Let all cats old enough to catch their own prey gather here beneath the Highledge! From this day on you shall be known as ${catName()}! ${mentor.name} — you are ready for an apprentice. Train ${catName()} well!`;
-    ceremonyTimer = 400;
-    dialogue = { speaker: 'Ripplestar', text: ceremonyText };
-    dialogueTimer = 400;
+    choosingPath = true;
+    pathChoice = 0;
   }
   if (stage === 1 && xp >= XP_TO_WARRIOR) {
     stage = 2;
     xp = XP_TO_WARRIOR;
     const m = mentor ? mentor.name : 'your mentor';
     mentor = null;
-    ceremonyText = `${catName()}! You have trained hard and shown true courage. ${m} is proud of you. From this day forward you shall be known as ${catName()}!`;
+    const pathCeremony = catPath === 'medicine'
+      ? `${catName()}! You have learned the ways of herbs and healing. ${m} is proud of you. From this day forward you shall be known as ${catName()}, medicine cat of RiverClan!`
+      : `${catName()}! You have trained hard and shown true courage. ${m} is proud of you. From this day forward you shall be known as ${catName()}!`;
+    ceremonyText = pathCeremony;
     ceremonyTimer = 400;
     dialogue = { speaker: 'Ripplestar', text: ceremonyText };
     dialogueTimer = 400;
@@ -664,7 +695,7 @@ function update() {
   if (fishCaughtTimer > 0) fishCaughtTimer--;
 
   // ── Battle: trigger with B at camp border ──────────────────────────────────
-  if (keys['b'] && !tcBattle && !currentDen && !dialogue && stage === 2) {
+  if (keys['b'] && !tcBattle && !currentDen && !dialogue && stage === 2 && catPath === 'warrior') {
     startBattle();
     keys['b'] = false;
   }
@@ -760,6 +791,7 @@ function draw() {
     drawPlayer();
   }
   drawHUD();
+  if (choosingPath) drawPathChoice();
   if (battleWon && battleWonTimer > 300) drawVictory();
   if (dialogue) drawDialogue();
 }
@@ -1465,6 +1497,55 @@ function drawTCCats() {
   }
 }
 
+function drawPathChoice() {
+  // dim background
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#7ec8e3';
+  ctx.font = 'bold 20px Georgia';
+  ctx.fillText('You are old enough to begin your training!', W/2, H/2 - 130);
+  ctx.fillStyle = '#e8d5a3';
+  ctx.font = '15px Georgia';
+  ctx.fillText('Ripplestar asks: what path will you choose?', W/2, H/2 - 100);
+
+  const opts = [
+    { label: 'Warrior', icon: '⚔', desc: 'Hunt, fight, find a mate,\nraise kits & defend RiverClan!', col: '#c8a040' },
+    { label: 'Medicine Cat', icon: '🌿', desc: 'Gather herbs, heal your\nclanmates & talk to StarClan!', col: '#70c870' },
+  ];
+
+  opts.forEach((opt, i) => {
+    const bx = W/2 - 240 + i * 260, by = H/2 - 75, bw = 220, bh = 160;
+    const chosen = pathChoice === i;
+    ctx.fillStyle = chosen ? (i === 0 ? 'rgba(100,70,0,0.85)' : 'rgba(20,80,20,0.85)') : 'rgba(20,20,20,0.7)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = chosen ? opt.col : '#555';
+    ctx.lineWidth = chosen ? 3 : 1;
+    ctx.strokeRect(bx, by, bw, bh);
+
+    ctx.fillStyle = opt.col;
+    ctx.font = '36px Georgia';
+    ctx.fillText(opt.icon, bx + bw/2, by + 50);
+    ctx.fillStyle = chosen ? '#fff' : '#aaa';
+    ctx.font = 'bold 16px Georgia';
+    ctx.fillText(opt.label, bx + bw/2, by + 78);
+    ctx.fillStyle = chosen ? '#ddd' : '#888';
+    ctx.font = '12px Georgia';
+    opt.desc.split('\n').forEach((line, li) => ctx.fillText(line, bx + bw/2, by + 100 + li * 18));
+
+    if (chosen) {
+      ctx.fillStyle = opt.col;
+      ctx.font = 'bold 13px Georgia';
+      ctx.fillText('▶ CHOSEN ◀', bx + bw/2, by + bh - 12);
+    }
+  });
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '12px Georgia';
+  ctx.fillText('A / D to choose   Enter to confirm', W/2, H/2 + 110);
+}
+
 function drawVictory() {
   ctx.fillStyle = 'rgba(0,40,80,0.7)';
   ctx.fillRect(W/2 - 220, H/2 - 50, 440, 100);
@@ -1491,7 +1572,7 @@ function drawPlayer() {
 
 function drawHUD() {
   // Name + stage
-  const stageLabel = ['Kit', 'Apprentice', 'Warrior'][stage];
+  const stageLabel = stage === 0 ? 'Kit' : stage === 1 ? (catPath === 'medicine' ? 'Medicine Apprentice' : 'Apprentice') : (catPath === 'medicine' ? 'Medicine Cat' : 'Warrior');
   ctx.fillStyle = '#aadfc8';
   ctx.font = '15px Georgia';
   ctx.textAlign = 'left';
