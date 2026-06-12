@@ -479,14 +479,15 @@ function update() {
 
     if (keys['t'] && !dialogue) {
       // find nearest den cat
-      const denCatXs = den.cats.map((_, i) => denCatX(den, i));
+      const visCats = visibleDenCats(den);
+      const denCatXs = visCats.map((_, i) => denCatX(den, i));
       let nearest = 0, nearDist = 9999;
       denCatXs.forEach((cx, i) => {
         const d = Math.abs(cat.x - cx);
         if (d < nearDist) { nearDist = d; nearest = i; }
       });
       if (nearDist < 80) {
-        const nearCat = den.cats[nearest];
+        const nearCat = visCats[nearest];
         // mate asking — only warriors, only in warriors den, only cats that aren't already your mate
         if (stage === 2 && den.id === 'warriors' && !mate && keys['m']) {
           // handled below
@@ -521,14 +522,15 @@ function update() {
 
     // M to ask a cat to be your mate (warrior path only, warriors den)
     if (keys['m'] && stage === 2 && catPath === 'warrior' && den.id === 'warriors' && !mate && !dialogue) {
-      const denCatXs = den.cats.map((_, i) => denCatX(den, i));
+      const visCatsM = visibleDenCats(den);
+      const denCatXs = visCatsM.map((_, i) => denCatX(den, i));
       let nearest = 0, nearDist = 9999;
       denCatXs.forEach((cx, i) => {
         const d = Math.abs(cat.x - cx);
         if (d < nearDist) { nearDist = d; nearest = i; }
       });
       if (nearDist < 80) {
-        const chosen = den.cats[nearest];
+        const chosen = visCatsM[nearest];
         mate = { name: chosen.name, color: chosen.color, leg: chosen.leg };
         dialogue = { speaker: chosen.name, text: `${catName()}... I would be honoured to be your mate. My heart is yours. 💕` };
         dialogueTimer = 280;
@@ -977,9 +979,17 @@ function draw() {
   if (dialogue) drawDialogue();
 }
 
+function visibleDenCats(den) {
+  return den.cats.filter(c => {
+    if (c.name === 'Silverdepth' && stage >= 3) return false;
+    if (c.name === 'Ripplestar'  && stage >= 4) return false;
+    return true;
+  });
+}
+
 function denCatX(den, i) {
-  // spread cats evenly across den width
-  const spacing = W / (den.cats.length + 1);
+  const cats = visibleDenCats(den);
+  const spacing = W / (cats.length + 1);
   return spacing * (i + 1);
 }
 
@@ -1091,7 +1101,7 @@ function drawDenInterior() {
   ctx.fillText(den.desc, W/2, 58);
 
   // Den cats
-  den.cats.forEach((c, i) => {
+  visibleDenCats(den).forEach((c, i) => {
     const cx = denCatX(den, i);
     const sz = c.name.endsWith('kit') || c.name.endsWith('paw') ? 14 : 20;
     drawCat(cx, H - 80, 0, c.color, c.leg, sz);
