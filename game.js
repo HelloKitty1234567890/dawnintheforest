@@ -524,7 +524,7 @@ function update() {
       }
     }
     // K to have a kit — only in nursery, warrior with mate, max 3
-    if (keys['k'] && stage === 2 && mate && kits.length < 3 && den.id === 'nursery' && !dialogue && !namingKit) {
+    if (keys['k'] && stage >= 2 && mate && kits.length < 3 && den.id === 'nursery' && !dialogue && !namingKit) {
       namingKit = true;
       kitNameInput = '';
       keys['k'] = false;
@@ -549,7 +549,7 @@ function update() {
     }
 
     // P to pick an apprentice from the nursery kits
-    if (keys['p'] && stage === 2 && den.id === 'nursery' && !apprentice && !dialogue && !namingKit) {
+    if (keys['p'] && stage >= 2 && den.id === 'nursery' && !apprentice && !dialogue && !namingKit) {
       const nurseryKits = kits.filter(k => k.stage === 0);
       if (nurseryKits.length > 0) {
         // use the filtered index (i) so positions match how they are drawn
@@ -1163,9 +1163,9 @@ function drawDenInterior() {
   ctx.font = '11px Georgia';
   ctx.textAlign = 'center';
   const mateHint = stage === 2 && currentDen === 'warriors' && !mate ? '   M ask to be mates' : '';
-  const kitHint  = stage === 2 && mate && kits.length < 3 && currentDen === 'nursery' ? '   K have a kit' : '';
-  const appHint  = stage === 2 && !apprentice && currentDen === 'nursery' && kits.some(k => k.stage === 0) ? '   P pick apprentice' : '';
-  const trainHint = stage === 2 && apprentice && currentDen === 'apprentice' ? ('   P ' + (apprenticeOut ? 'send back' : 'take on patrol')) : '';
+  const kitHint  = stage >= 2 && mate && kits.length < 3 && currentDen === 'nursery' ? '   K have a kit' : '';
+  const appHint  = stage >= 2 && !apprentice && currentDen === 'nursery' && kits.some(k => k.stage === 0) ? '   P pick apprentice' : '';
+  const trainHint = stage >= 2 && apprentice && currentDen === 'apprentice' ? ('   P ' + (apprenticeOut ? 'send back' : 'take on patrol')) : '';
   ctx.fillText('A/D move   T talk   S sleep   Q leave' + mateHint + kitHint + appHint + trainHint, W/2, H - 10);
 }
 
