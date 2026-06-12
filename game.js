@@ -1676,6 +1676,9 @@ function drawMoonpool() {
 
 function drawNPCs() {
   for (const npc of NPCS) {
+    // Hide cats that have died as the player progresses
+    if (npc.name === 'Silverdepth' && stage >= 3) continue;
+    if (npc.name === 'Ripplestar'  && stage >= 4) continue;
     const sx = npc.x - cameraX;
     if (sx < -60 || sx > W + 60) continue;
     drawCat(sx, GROUND_Y, 0, npc.color, npc.legColor, npc.size);
