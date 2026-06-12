@@ -241,6 +241,9 @@ let healTimer = 0;          // ticks between heals outside battle
 let swipeTimer = 0;         // brief swipe animation
 let battleWon  = false;     // show victory screen briefly
 let battleWonTimer = 0;
+let gameOver = false;       // leader used all 9 lives
+let defeated = false;       // non-leader knocked out
+let defeatedTimer = 0;
 
 // ─── Sleep ───────────────────────────────────────────────────────────────────
 let sleeping = false;
@@ -374,6 +377,9 @@ function startGame() {
   swipeTimer    = 0;
   battleWon     = false;
   battleWonTimer  = 0;
+  gameOver        = false;
+  defeated        = false;
+  defeatedTimer   = 0;
   moonpoolVisited = false;
   moonpoolTimer   = 0;
   sleeping        = false;
@@ -427,6 +433,12 @@ function confirmPath() {
 }
 
 function update() {
+  // Game over — Enter to restart
+  if (gameOver) {
+    if (keys['enter']) { gameOver = false; startGame(); }
+    return;
+  }
+
   // Path choice screen blocks all other input
   if (choosingPath) {
     if (keys['a'] || keys['arrowleft'])  { pathChoice = 0; keys['a'] = keys['arrowleft'] = false; }
@@ -851,18 +863,19 @@ function update() {
               playerHp = PLAYER_MAX_HP;
               if (leaderLives <= 0) {
                 tcBattle = false; tcCats = [];
-                dialogue = { speaker: 'StarClan', text: `${catName()}... you have used all nine lives. You join us now among the stars. RiverClan will remember you always.` };
-                dialogueTimer = 500;
+                gameOver = true;
               } else {
-                dialogue = { speaker: catName(), text: `A life lost! ${leaderLives} lives remain. I will not give up!` };
+                dialogue = { speaker: catName(), text: `A life lost! ${leaderLives} ${leaderLives === 1 ? 'life' : 'lives'} remain. I will not give up!` };
                 dialogueTimer = 200;
               }
             } else {
               tcBattle = false;
               tcCats = [];
-              playerHp = 3;
-              dialogue = { speaker: 'Ripplestar', text: `${catName()}! Fall back! You fought bravely but you need to rest. ThunderClan will be back...` };
-              dialogueTimer = 300;
+              playerHp = PLAYER_MAX_HP;
+              defeated = true;
+              defeatedTimer = 180;
+              cat.x = CAMP_START + 100;
+              cameraX = cat.x - W / 3;
             }
           }
         }
@@ -887,6 +900,7 @@ function update() {
   }
 
   if (battleWonTimer > 0) battleWonTimer--;
+  if (defeatedTimer > 0) { defeatedTimer--; return; } else if (defeated && defeatedTimer === 0) { defeated = false; }
 
   moonpoolTimer++;
   if (moonpoolVisited) {
@@ -958,6 +972,8 @@ function draw() {
   drawHUD();
   if (choosingPath) drawPathChoice();
   if (battleWon && battleWonTimer > 300) drawVictory();
+  if (defeated && defeatedTimer > 0) drawDefeated();
+  if (gameOver) drawGameOver();
   if (dialogue) drawDialogue();
 }
 
@@ -1819,6 +1835,51 @@ function drawVictory() {
   ctx.fillStyle = '#aadfc8';
   ctx.font = '14px Georgia';
   ctx.fillText('ThunderClan has been driven from our territory!', W/2, H/2 + 28);
+}
+
+function drawDefeated() {
+  ctx.fillStyle = 'rgba(60,0,0,0.82)';
+  ctx.fillRect(W/2 - 230, H/2 - 55, 460, 110);
+  ctx.strokeStyle = '#e05050';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(W/2 - 230, H/2 - 55, 460, 110);
+  ctx.fillStyle = '#ff8080';
+  ctx.font = 'bold 20px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText('You have been defeated!', W/2, H/2 - 14);
+  ctx.fillStyle = '#e8d5a3';
+  ctx.font = '14px Georgia';
+  ctx.fillText('ThunderClan overpowered you... you wake up back in camp.', W/2, H/2 + 14);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '12px Georgia';
+  ctx.fillText('Recovering...', W/2, H/2 + 38);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.88)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#7ec8e3';
+  ctx.font = 'bold 26px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText('✨ You Have Joined StarClan ✨', W/2, H/2 - 70);
+  ctx.fillStyle = '#e8d5a3';
+  ctx.font = '16px Georgia';
+  ctx.fillText(`${catName()} used all nine lives with courage and honour.`, W/2, H/2 - 30);
+  ctx.fillText('RiverClan will sing of your deeds for generations.', W/2, H/2);
+  ctx.fillStyle = '#aadfc8';
+  ctx.font = '14px Georgia';
+  ctx.fillText('Press Enter to begin again', W/2, H/2 + 50);
+
+  // star sparkles
+  const t = Date.now() / 600;
+  for (let i = 0; i < 12; i++) {
+    const sx = W/2 + Math.cos(t + i * 0.52) * 200;
+    const sy = H/2 + Math.sin(t * 0.7 + i * 0.52) * 100;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2 + Math.sin(t + i) * 1.2, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200,230,255,${0.5 + Math.sin(t + i) * 0.4})`;
+    ctx.fill();
+  }
 }
 
 function drawPlayer() {
