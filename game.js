@@ -707,7 +707,7 @@ function update() {
     const dist = Math.abs(cat.x - p.x);
     if (dist < 120 && inForest) {
       p.scared = true;
-      p.vx = p.x < cat.x ? -1.8 : 1.8;
+      if (!pouncing) p.vx = p.x < cat.x ? -1.8 : 1.8; // freeze when cat pounces
       if (p.name === 'bird' && dist < 60) p.y = Math.max(GROUND_Y - 60, p.y - 2); // birds fly up
     } else {
       p.scared = false;
@@ -735,7 +735,7 @@ function update() {
       pouncing = false;
       // check if landed on any prey
       for (const p of forestPrey) {
-        if (!p.caught && Math.abs(cat.x - p.x) < 30 && Math.abs(cat.y - p.y) < 30) {
+        if (!p.caught && Math.abs(cat.x - p.x) < 55 && Math.abs(cat.y - p.y) < 55) {
           p.caught = true;
           preyCount++;
           xp += p.xp;
