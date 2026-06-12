@@ -531,7 +531,7 @@ function update() {
     }
 
     // P in apprentice den — take apprentice on patrol or send them back
-    if (keys['p'] && stage === 2 && den.id === 'apprentice' && apprentice && !dialogue) {
+    if (keys['p'] && stage >= 2 && den.id === 'apprentice' && apprentice && !dialogue) {
       const appIdx = kits.filter(k => kitDen(k) === 'apprentice').indexOf(apprentice);
       const appKx = 140 + appIdx * 100;
       if (Math.abs(cat.x - appKx) < 110) {
