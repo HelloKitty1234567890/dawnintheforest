@@ -2063,115 +2063,81 @@ function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22
   ctx.bezierCurveTo(-s*2.1, bcy - s*1.4, -s*1.8, bcy - s*1.7, -s*1.4, bcy - s*1.8);
   ctx.stroke();
 
-  // ── BACK LEGS ──
-  const swing = Math.sin(walk * 0.28) * s * 0.3;
-  ctx.strokeStyle = legColor; ctx.lineWidth = s*0.22; ctx.lineCap = 'round';
-  // back-left leg
+  // ── BACK LEGS — short, straight, simple ──
+  const swing = Math.sin(walk * 0.28) * s * 0.15;
+  ctx.strokeStyle = legColor; ctx.lineWidth = s*0.24; ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(-s*0.7, bcy + s*0.55);
-  ctx.lineTo(-s*0.8, bcy + s*1.1 - swing);
-  ctx.lineTo(-s*0.65, gy);
+  ctx.moveTo(-s*0.7, bcy + s*0.5);
+  ctx.lineTo(-s*0.72 + swing, gy);
   ctx.stroke();
-  // back-right leg
   ctx.beginPath();
-  ctx.moveTo(-s*0.5, bcy + s*0.55);
-  ctx.lineTo(-s*0.55, bcy + s*1.1 + swing);
-  ctx.lineTo(-s*0.35, gy);
+  ctx.moveTo(-s*0.45, bcy + s*0.5);
+  ctx.lineTo(-s*0.42 - swing, gy);
   ctx.stroke();
 
   // ── BODY ──
   ctx.fillStyle = c;
   ctx.beginPath();
-  ctx.ellipse(0, bcy, s*1.25, s*0.68, -0.08, 0, Math.PI*2);
+  ctx.ellipse(0, bcy, s*1.15, s*0.62, -0.05, 0, Math.PI*2);
   ctx.fill();
 
   // belly slightly lighter
   ctx.fillStyle = legColor;
   ctx.beginPath();
-  ctx.ellipse(s*0.1, bcy + s*0.35, s*0.7, s*0.28, 0.1, 0, Math.PI*2);
+  ctx.ellipse(s*0.05, bcy + s*0.32, s*0.65, s*0.26, 0.05, 0, Math.PI*2);
   ctx.fill();
 
-  // spiky fur on back
-  ctx.strokeStyle = c; ctx.lineWidth = s*0.1; ctx.lineCap = 'round';
-  for (let i = 0; i < 5; i++) {
-    const fx = -s*0.8 + i * s*0.4;
-    ctx.beginPath();
-    ctx.moveTo(fx, bcy - s*0.6);
-    ctx.lineTo(fx + s*0.05, bcy - s*0.95);
-    ctx.stroke();
-  }
-  // chest tuft
+  // ── FRONT LEGS — short, straight, simple ──
+  ctx.strokeStyle = c; ctx.lineWidth = s*0.24; ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(s*0.9, bcy + s*0.1);
-  ctx.lineTo(s*1.1, bcy - s*0.1);
-  ctx.moveTo(s*0.85, bcy + s*0.25);
-  ctx.lineTo(s*1.1, bcy + s*0.18);
-  ctx.stroke();
-
-  // ── FRONT LEGS ──
-  ctx.strokeStyle = c; ctx.lineWidth = s*0.22; ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(s*0.8, bcy + s*0.4);
-  ctx.lineTo(s*0.9, bcy + s*1.0 + swing);
-  ctx.lineTo(s*0.8, gy);
+  ctx.moveTo(s*0.75, bcy + s*0.35);
+  ctx.lineTo(s*0.72 + swing, gy);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(s*0.95, bcy + s*0.4);
-  ctx.lineTo(s*1.05, bcy + s*1.0 - swing);
-  ctx.lineTo(s*0.95, gy);
+  ctx.moveTo(s*0.98, bcy + s*0.35);
+  ctx.lineTo(s*1.0 - swing, gy);
   ctx.stroke();
 
   // paws
   ctx.fillStyle = legColor;
-  ctx.beginPath(); ctx.ellipse(s*0.8,  gy, s*0.18, s*0.1, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(s*0.95, gy, s*0.18, s*0.1, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(-s*0.65, gy, s*0.18, s*0.1, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(-s*0.35, gy, s*0.18, s*0.1, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*0.72 + swing,  gy, s*0.16, s*0.09, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*1.0 - swing, gy, s*0.16, s*0.09, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-s*0.72 + swing, gy, s*0.16, s*0.09, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-s*0.42 - swing, gy, s*0.16, s*0.09, 0, 0, Math.PI*2); ctx.fill();
 
-  // ── HEAD ──
-  const hx = s*1.1, hy = bcy - s*0.55, hr = s*0.58;
+  // ── HEAD ── (overlaps body directly, no separate neck blob)
+  const hx = s*0.85, hy = bcy - s*0.62, hr = s*0.52;
   ctx.fillStyle = c;
   ctx.beginPath();
   ctx.arc(hx, hy, hr, 0, Math.PI*2);
   ctx.fill();
-
-  // neck connect
-  ctx.fillStyle = c;
+  // smooth neck fill between head and body
   ctx.beginPath();
-  ctx.moveTo(s*0.7, bcy - s*0.3);
-  ctx.quadraticCurveTo(s*0.95, bcy - s*0.7, hx - hr*0.7, hy + hr*0.5);
-  ctx.lineTo(hx - hr*0.3, hy + hr*0.7);
-  ctx.quadraticCurveTo(s*0.9, bcy - s*0.1, s*0.95, bcy + s*0.2);
+  ctx.ellipse(hx, hy + hr*0.55, hr*0.75, hr*0.6, -0.3, 0, Math.PI*2);
   ctx.fill();
 
-  // ── EARS ──
+  // ── EARS — small simple triangles ──
   ctx.fillStyle = c;
   // back ear (slightly hidden)
-  ctx.globalAlpha = 0.7;
+  ctx.globalAlpha = 0.75;
   ctx.beginPath();
-  ctx.moveTo(hx - hr*0.3, hy - hr*0.6);
-  ctx.lineTo(hx - hr*0.1, hy - hr*1.5);
-  ctx.lineTo(hx + hr*0.35, hy - hr*0.7);
+  ctx.moveTo(hx - hr*0.35, hy - hr*0.55);
+  ctx.lineTo(hx - hr*0.15, hy - hr*1.25);
+  ctx.lineTo(hx + hr*0.25, hy - hr*0.65);
   ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 1;
   // front ear
   ctx.beginPath();
-  ctx.moveTo(hx + hr*0.05, hy - hr*0.65);
-  ctx.lineTo(hx + hr*0.45, hy - hr*1.55);
-  ctx.lineTo(hx + hr*0.75, hy - hr*0.55);
+  ctx.moveTo(hx + hr*0.1, hy - hr*0.65);
+  ctx.lineTo(hx + hr*0.4, hy - hr*1.3);
+  ctx.lineTo(hx + hr*0.65, hy - hr*0.5);
   ctx.closePath(); ctx.fill();
-  // ear tufts
-  ctx.strokeStyle = legColor; ctx.lineWidth = s*0.07;
-  ctx.beginPath();
-  ctx.moveTo(hx + hr*0.3, hy - hr*0.9);
-  ctx.lineTo(hx + hr*0.45, hy - hr*1.45);
-  ctx.stroke();
   // inner ear
   ctx.fillStyle = '#d07888';
   ctx.beginPath();
-  ctx.moveTo(hx + hr*0.12, hy - hr*0.7);
-  ctx.lineTo(hx + hr*0.42, hy - hr*1.38);
-  ctx.lineTo(hx + hr*0.65, hy - hr*0.62);
+  ctx.moveTo(hx + hr*0.18, hy - hr*0.68);
+  ctx.lineTo(hx + hr*0.38, hy - hr*1.12);
+  ctx.lineTo(hx + hr*0.55, hy - hr*0.56);
   ctx.closePath(); ctx.fill();
 
   // ── EYES — glowing green ──
@@ -2208,16 +2174,12 @@ function drawCat(x, groundY, vx, color = '#4a4a5a', legColor = '#6a6a7a', s = 22
   ctx.lineTo(nx - hr*0.12, ny + hr*0.22);
   ctx.stroke();
 
-  // ── WHISKERS ──
-  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 0.9;
-  for (const [wy, slant] of [[-0.04, 0.15], [0.06, 0], [0.16, -0.1]]) {
+  // ── WHISKERS ── (forward only, kept short and neat)
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 0.8;
+  for (const [wy, slant] of [[-0.03, 0.1], [0.05, 0], [0.13, -0.08]]) {
     ctx.beginPath();
-    ctx.moveTo(nx - hr*0.1, ny + wy*hr);
-    ctx.lineTo(nx + hr*1.5, ny + wy*hr + slant*hr);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(nx - hr*0.1, ny + wy*hr);
-    ctx.lineTo(nx - hr*0.9, ny + wy*hr - slant*hr*0.5);
+    ctx.moveTo(nx + hr*0.05, ny + wy*hr);
+    ctx.lineTo(nx + hr*1.1, ny + wy*hr + slant*hr);
     ctx.stroke();
   }
 
