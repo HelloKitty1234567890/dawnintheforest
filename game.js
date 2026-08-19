@@ -1370,16 +1370,56 @@ function drawBackground() {
   drawTrees();
 }
 
+// simple deterministic pseudo-random from an integer seed
+function treeRand(i) {
+  const v = Math.sin(i * 12.9898) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+function drawTreeLayer(spacing, parallax, baseScale, trunkColor, leafDark, leafLight, alpha) {
+  const offset = cameraX * parallax;
+  const startI = Math.floor((offset - 120) / spacing);
+  const endI   = Math.ceil((offset + W + 120) / spacing);
+  ctx.globalAlpha = alpha;
+  for (let i = startI; i <= endI; i++) {
+    const jitter = (treeRand(i) - 0.5) * spacing * 0.6;
+    const worldX = i * spacing + jitter;
+    const x = worldX - offset;
+    const scale = baseScale * (0.75 + treeRand(i + 100) * 0.5);
+    ctx.fillStyle = trunkColor;
+    ctx.fillRect(x - 6*scale, GROUND_Y - 90*scale, 12*scale, 90*scale);
+    ctx.fillStyle = leafDark;
+    ctx.beginPath(); ctx.arc(x, GROUND_Y - 100*scale, 32*scale, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = leafLight;
+    ctx.beginPath(); ctx.arc(x, GROUND_Y - 118*scale, 22*scale, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawTrees() {
-  const positions = [40,180,360,520,680,860,1060,1260,1460];
-  for (const tx of positions) {
-    const x = tx - cameraX * 0.5;
-    ctx.fillStyle = '#2a1a0a';
-    ctx.fillRect(x, GROUND_Y - 90, 12, 90);
-    ctx.fillStyle = '#0f3a0f';
-    ctx.beginPath(); ctx.arc(x+6, GROUND_Y-100, 32, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#1a5a1a';
-    ctx.beginPath(); ctx.arc(x+6, GROUND_Y-118, 22, 0, Math.PI*2); ctx.fill();
+  // Far background layer — hazy, distant treeline that never runs out
+  drawTreeLayer(210, 0.25, 0.65, '#1a1408', '#0a2a0a', '#123812', 0.55);
+  // Main tree layer — tiles infinitely across the whole world
+  drawTreeLayer(170, 0.5, 1, '#2a1a0a', '#0f3a0f', '#1a5a1a', 1);
+  drawUndergrowth();
+}
+
+function drawUndergrowth() {
+  // Light bushes/ferns tiled infinitely so every area feels forested — camp included
+  const spacing = 145;
+  const parallax = 0.95;
+  const offset = cameraX * parallax;
+  const startI = Math.floor((offset - 60) / spacing);
+  const endI   = Math.ceil((offset + W + 20) / spacing);
+  const night = isNight();
+  for (let i = startI; i <= endI; i++) {
+    const jitter = (treeRand(i + 500) - 0.5) * spacing * 0.5;
+    const sx = i * spacing + jitter - offset;
+    ctx.fillStyle = night ? '#16280e' : '#2a4a1a';
+    ctx.beginPath(); ctx.ellipse(sx, GROUND_Y - 8, 22, 12, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = night ? '#1e3212' : '#365e24';
+    ctx.beginPath(); ctx.ellipse(sx - 8, GROUND_Y - 11, 14, 9, -0.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx + 9, GROUND_Y - 10, 13, 9, 0.2, 0, Math.PI*2); ctx.fill();
   }
 }
 
