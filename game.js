@@ -1345,13 +1345,6 @@ function drawBackground() {
     ctx.beginPath(); ctx.arc(moonX + 5, moonY, 12, 0, Math.PI*2); ctx.fill();
   }
 
-  // Time of day label
-  const timeLabel = isNight() ? '🌙 Night' : isDawn() ? '🌅 Dawn' : isDusk() ? '🌆 Dusk' : '☀️ Day';
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = '11px Georgia';
-  ctx.textAlign = 'right';
-  ctx.fillText(timeLabel, W - 10, 20);
-
   // River — tinted by time of day
   ctx.fillStyle = col.water;
   ctx.fillRect(0, H * 0.62, W, H * 0.38);
@@ -1368,6 +1361,50 @@ function drawBackground() {
   ctx.fillRect(0, GROUND_Y, W, 5);
 
   drawTrees();
+  drawCanopy();
+
+  // Time of day label — drawn after canopy so it stays readable
+  const timeLabel = isNight() ? '🌙 Night' : isDawn() ? '🌅 Dawn' : isDusk() ? '🌆 Dusk' : '☀️ Day';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '11px Georgia';
+  ctx.textAlign = 'right';
+  ctx.fillText(timeLabel, W - 10, 20);
+}
+
+function drawCanopy() {
+  // Leafy tree canopy hanging from the top of the screen, tiles infinitely
+  const col = skyColors();
+  const night = isNight();
+  const darkLeaf  = night ? '#0a1a06' : '#12300f';
+  const midLeaf   = night ? '#12280c' : '#1c4315';
+  const lightLeaf = night ? '#1a3512' : '#2a5a1e';
+
+  const spacing = 130;
+  const offset = cameraX * 0.35; // slow parallax, feels close overhead
+  const startI = Math.floor((offset - 80) / spacing);
+  const endI   = Math.ceil((offset + W + 80) / spacing);
+
+  for (let i = startI; i <= endI; i++) {
+    const jitter = (treeRand(i + 900) - 0.5) * spacing * 0.5;
+    const cx = i * spacing + jitter - offset;
+    const dropY = -10 + treeRand(i + 950) * 18; // slight vertical variance
+    const scale = 0.85 + treeRand(i + 970) * 0.5;
+
+    ctx.fillStyle = darkLeaf;
+    ctx.beginPath(); ctx.ellipse(cx, dropY, 55*scale, 34*scale, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = midLeaf;
+    ctx.beginPath(); ctx.ellipse(cx - 22*scale, dropY + 6*scale, 34*scale, 22*scale, -0.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 26*scale, dropY + 4*scale, 32*scale, 20*scale, 0.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = lightLeaf;
+    ctx.beginPath(); ctx.ellipse(cx, dropY + 12*scale, 26*scale, 14*scale, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  // soft shadow gradient under the canopy so it blends into the sky
+  const shadow = ctx.createLinearGradient(0, 0, 0, 70);
+  shadow.addColorStop(0, night ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.18)');
+  shadow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = shadow;
+  ctx.fillRect(0, 0, W, 70);
 }
 
 // simple deterministic pseudo-random from an integer seed
